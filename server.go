@@ -36,12 +36,13 @@ func init() {
 	// Setup routes
 	r := martini.NewRouter()
 
-	r.Get(`/podcaster/media`, routes.GetMediaIndex)
-	r.Get(`/podcaster/media/:id`, routes.GetMedia)
-	r.Post(`/podcaster/media`, binding.Json(models.Media{}), routes.AddMedia)
-	r.Put(`/podcaster/media/:id`, binding.Json(models.Media{}), routes.UpdateMedia)
-	r.Delete(`/podcaster/media/:id`, routes.DeleteMedia)
+	r.Get(`/media`, routes.GetMediaIndex)
+	r.Get(`/media/:id`, routes.GetMedia)
+	r.Post(`/media`, binding.Json(models.Media{}), routes.AddMedia)
+	r.Put(`/media/:id`, binding.Json(models.Media{}), routes.UpdateMedia)
+	r.Delete(`/media/:id`, routes.DeleteMedia)
 
+	r.Get(`/feeds/:slug`, routes.GetFeed)
 	// Inject database
 	m.MapTo(models.Dbm, (*gorp.SqlExecutor)(nil))
 	// Add the router action
