@@ -1,0 +1,13 @@
+<?xml version="1.0" standalone="no"?>
+<!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN" "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd">
+<svg xmlns="http://www.w3.org/2000/svg">
+<metadata>Copyright (C) 2014 by original authors @ fontello.com</metadata>
+<defs>
+<font id="podcaster" horiz-adv-x="1000" >
+<font-face font-family="podcaster" font-weight="400" font-stretch="normal" units-per-em="1000" ascent="850" descent="-150" />
+<missing-glyph horiz-adv-x="1000" />
+<glyph glyph-name="rss-squared" unicode="&#xe801;" d="m286 136q0 29-21 50t-51 21-50-21-21-50 21-51 50-21 51 21 21 51z m196-53q-8 130-99 221t-221 99q-8 1-14-5t-5-13v-71q0-8 5-13t12-5q86-6 147-68t67-147q1-7 6-12t12-5h72q7 0 13 6t5 13z m214 0q-3 86-31 166t-78 145-115 114-145 78-166 31q-8 1-13-5-5-5-5-13v-71q0-7 5-12t12-6q114-4 211-62t156-155 62-211q0-8 5-13t13-5h71q7 0 13 6 6 5 5 13z m161 535v-536q0-66-47-113t-114-48h-535q-67 0-114 48t-47 113v536q0 66 47 113t114 48h535q67 0 114-48t47-113z" horiz-adv-x="857.1" />
+<glyph glyph-name="itunes" unicode="&#xe800;" d="m0 350q0 136 67 251t182 182 251 67 251-67 182-182 67-251-67-251-182-182-251-67-251 67-182 182-67 251z m100 0q0-166 117-283t283-117 283 117 117 283-117 283-283 117-283-117-117-283z m183-176q0-31 22-52t52-22q33 0 57 24t24 57l0 269 200 37 0-208q-15 5-28 5-33 0-57-24t-24-57q0-31 21-52t52-22 56 23 25 54l0 394-290-50 0-300q-15 5-28 5-34 0-58-24t-24-57z" horiz-adv-x="1000" />
+</font>
+</defs>
+</svg>

@@ -15,9 +15,19 @@ type Group struct {
 
 	Slug string `json:"slug"`
 
+	Description string `json:"description"`
+
+	Language string `json:"language"`
+
+	Category string `json:"category"`
+
+	Explicit string `json:"explicit"`
+
 	Text string `json:"text" binding:"required"`
 
 	Author string `json:"author" binding:"required"`
+
+	Email string `json:"email" binding:"required"`
 
 	PictureUrl string `json:"picture"`
 
@@ -36,6 +46,9 @@ func (u Group) Validate(errors *binding.Errors) {
 	}
 	if len(u.Author) < 0 {
 		errors.Fields["author"] = "Author is required"
+	}
+	if len(u.Email) < 0 {
+		errors.Fields["email"] = "Email is required"
 	}
 }
 

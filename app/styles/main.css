@@ -14,12 +14,12 @@ body {
 .footer {
   position: fixed;
   bottom: 0;
-  padding-top: 15px;
+  padding-top: 10px;
   padding-left: 10px;
-  color: #777;
+  /* color: #1B1B1B; */
   width: 100%;
-  border-top: 1px solid #e5e5e5;
-  background: #fff;
+  /* border-top: 1px solid #FFE627; */
+  /* background: #FFD630; */
 }
 
 .jumbotron {
@@ -28,6 +28,11 @@ body {
 
 .jumbotron h2 {
   margin-top: 0;
+}
+
+.jumbotron p {
+  font-size: initial!important;
+  font-weight: initial!important;
 }
 
 header {
@@ -39,7 +44,7 @@ ul.unstyled {
   margin: 0;
   padding: 0;
 }
-ul.unstyled li{
-  padding: .3em;
 
+ul.unstyled li {
+  padding: .3em;
 }

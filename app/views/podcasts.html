@@ -8,7 +8,7 @@
     <div class="row">
       <div class="col-md-3">
         <a href="#/podcast/{{item.slug}}">
-          <img src="http://placeimg.com/320/240/people?id={{item.id}}" class="img-rounded img-responsive">
+          <img ng-src="{{item.picture}}" class="img-rounded img-responsive">
         </a>
       </div>
       <div class="col-md-9">
@@ -16,8 +16,8 @@
         <cite>by {{item.author}}</cite>
         <p>{{item.text}}</p>
         <p>
-          <a class="btn btn-default btn-sm" href="/feeds/{{item.slug}}" target="_blank" role="button"><span class="glyphicon glyphicon-headphones"></span> Subscribe with RSS</a>
-          <a class="btn btn-default btn-sm" href="/feeds/{{item.slug}}" target="_blank" role="button"><span class="glyphicon glyphicon-headphones"></span> Subscribe in iTunes</a>
+          <a class="btn btn-default btn-sm" href="/feed/{{item.slug}}" target="_blank" role="button"><span class="icon-rss-squared"></span> Subscribe with RSS</a>
+          <a class="btn btn-default btn-sm" href="/feed/{{item.slug}}" target="_blank" role="button"><span class="icon-itunes"></span> Subscribe in iTunes</a>
         </p>
       </div>
     </div>
