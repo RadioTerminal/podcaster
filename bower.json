@@ -17,7 +17,8 @@
     "videogular": "~0.3.1",
     "videogular-poster": "~0.3.1",
     "videogular-themes-default": "~0.3.1",
-    "videogular-controls": "~0.3.1"
+    "videogular-controls": "~0.3.1",
+    "angular-loading-bar": "~0.3.0"
   },
   "devDependencies": {
     "angular-mocks": "1.2.15",

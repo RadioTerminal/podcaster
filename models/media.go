@@ -1,5 +1,9 @@
 package models
 
+import (
+	"time"
+)
+
 type Media struct {
 	Id int64 `json:"id"`
 
@@ -15,7 +19,9 @@ type Media struct {
 
 	Url string `json:"url"`
 
-	Group int64 `json:"group"`
-
 	PictureUrl string `json:"img"`
+
+	CreatedAt time.Time `json:"created"`
+
+	UpdatedAt time.Time `json:"updated"`
 }

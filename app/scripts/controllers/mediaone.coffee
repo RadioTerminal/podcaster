@@ -1,9 +1,5 @@
 'use strict'
 
 angular.module('podcasterApp')
-  .controller 'MediaoneCtrl', ($scope) ->
-    $scope.awesomeThings = [
-      'HTML5 Boilerplate'
-      'AngularJS'
-      'Karma'
-    ]
+  .controller 'MediaoneCtrl', ($scope, data) ->
+  	console.log data
