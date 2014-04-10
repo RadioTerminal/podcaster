@@ -5,6 +5,7 @@ import (
 	"./routes"
 	"github.com/go-martini/martini"
 	"github.com/joho/godotenv"
+	"github.com/martini-contrib/binding"
 	"github.com/martini-contrib/gzip"
 	"github.com/martini-contrib/render"
 	"github.com/pilu/fresh/runner/runnerutils"
@@ -44,22 +45,27 @@ func init() {
 	// Setup routes
 	gr := martini.NewRouter()
 	gr.Group("/api", func(r martini.Router) {
-		r.Get(`/latest`, routes.GroupsIndex)
 
-		// r.Get(`/media`, routes.GetMediaIndex)
-		// r.Get(`/media/:id`, routes.GetMedia)
-		// r.Post(`/media`, binding.Json(models.Media{}), routes.AddMedia)
-		// r.Put(`/media/:id`, binding.Json(models.Media{}), routes.UpdateMedia)
-		// r.Delete(`/media/:id`, routes.DeleteMedia)
+		r.Get(`/latest`, routes.LatestIndex)
+		r.Get(`/popular`, routes.PopularIndex)
 
-		// r.Get(`/groups`, routes.GetGroupIndex)
-		// r.Get(`/group/:id`, routes.GetGroup)
-		// r.Post(`/groups`, binding.Json(models.Group{}), routes.AddGroup)
-		// r.Put(`/group/:id`, binding.Json(models.Group{}), routes.UpdateGroup)
-		// r.Delete(`/group/:id`, routes.DeleteGroup)
+		r.Get(`/media`, routes.GroupsIndex)
+		r.Post(`/media`, binding.Bind(models.Group{}), routes.GroupCreate)
+		r.Get("/media/new", routes.GroupNew)
+		r.Get(`/media/:slug`, routes.GroupGet)
+		r.Put(`/media/:id`, binding.Bind(models.Group{}), routes.GroupUpdate)
+		r.Delete(`/media/:id`, routes.GroupDelete)
+
+		r.Get(`/groups`, routes.GroupsIndex)
+		r.Post(`/groups`, binding.Bind(models.Group{}), routes.GroupCreate)
+		r.Get("/groups/new", routes.GroupNew)
+		r.Get(`/group/:slug`, routes.GroupGet)
+		r.Get(`/group/:slug/media`, routes.MediaForGroupGet)
+		r.Put(`/group/:id`, binding.Bind(models.Group{}), routes.GroupUpdate)
+		r.Delete(`/group/:id`, routes.GroupDelete)
 	})
 
-	//gr.Get(`/feeds/:slug`, routes.GetFeed)
+	gr.Get(`/feed/:slug`, routes.FeedForGroupGet)
 	// Inject database
 
 	// Add the router action

@@ -1,5 +1,6 @@
 'use strict'
 
 angular.module('podcasterApp')
-  .controller 'PodcastsCtrl', ($scope, data) ->
-  	console.log data
+  .controller 'PodcastsCtrl', ($scope, groups, $log) ->
+    $scope.groups = groups
+    $log.info groups

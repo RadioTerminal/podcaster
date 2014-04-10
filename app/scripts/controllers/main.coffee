@@ -1,5 +1,6 @@
 'use strict'
 
 angular.module('podcasterApp')
-  .controller 'MainCtrl', ($scope, data) ->
-  	console.log data
+  .controller 'MainCtrl', ($scope, latest, popular) ->
+  	$scope.latest = latest
+  	$scope.popular = popular

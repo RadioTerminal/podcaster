@@ -23,7 +23,7 @@ func Connect() gorm.DB {
 		db.LogMode(true)
 	}
 
-	db.CreateTable(Media{})
-	db.CreateTable(Group{})
+	db.AutoMigrate(Media{})
+	db.AutoMigrate(Group{})
 	return db
 }

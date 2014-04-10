@@ -1,37 +1,14 @@
-<header>
-    <h1>Media</h1>
-    <button type="button" class="btn btn-lg btn-primary">Add media +</button>
-</header>
-
 <div class="row">
-    <div class="col-6 col-sm-6 col-lg-4">
-      <h2>Heading</h2>
-      <p>Donec id elit non mi porta gravida at eget metus. Fusce dapibus, tellus ac cursus commodo, tortor mauris condimentum nibh, ut fermentum massa justo sit amet risus. Etiam porta sem malesuada magna mollis euismod. Donec sed odio dui. </p>
-      <p><a class="btn btn-default" href="#" role="button">View details »</a></p>
-    </div><!--/span-->
-    <div class="col-6 col-sm-6 col-lg-4">
-      <h2>Heading</h2>
-      <p>Donec id elit non mi porta gravida at eget metus. Fusce dapibus, tellus ac cursus commodo, tortor mauris condimentum nibh, ut fermentum massa justo sit amet risus. Etiam porta sem malesuada magna mollis euismod. Donec sed odio dui. </p>
-      <p><a class="btn btn-default" href="#" role="button">View details »</a></p>
-    </div><!--/span-->
-    <div class="col-6 col-sm-6 col-lg-4">
-      <h2>Heading</h2>
-      <p>Donec id elit non mi porta gravida at eget metus. Fusce dapibus, tellus ac cursus commodo, tortor mauris condimentum nibh, ut fermentum massa justo sit amet risus. Etiam porta sem malesuada magna mollis euismod. Donec sed odio dui. </p>
-      <p><a class="btn btn-default" href="#" role="button">View details »</a></p>
-    </div><!--/span-->
-    <div class="col-6 col-sm-6 col-lg-4">
-      <h2>Heading</h2>
-      <p>Donec id elit non mi porta gravida at eget metus. Fusce dapibus, tellus ac cursus commodo, tortor mauris condimentum nibh, ut fermentum massa justo sit amet risus. Etiam porta sem malesuada magna mollis euismod. Donec sed odio dui. </p>
-      <p><a class="btn btn-default" href="#" role="button">View details »</a></p>
-    </div><!--/span-->
-    <div class="col-6 col-sm-6 col-lg-4">
-      <h2>Heading</h2>
-      <p>Donec id elit non mi porta gravida at eget metus. Fusce dapibus, tellus ac cursus commodo, tortor mauris condimentum nibh, ut fermentum massa justo sit amet risus. Etiam porta sem malesuada magna mollis euismod. Donec sed odio dui. </p>
-      <p><a class="btn btn-default" href="#" role="button">View details »</a></p>
-    </div><!--/span-->
-    <div class="col-6 col-sm-6 col-lg-4">
-      <h2>Heading</h2>
-      <p>Donec id elit non mi porta gravida at eget metus. Fusce dapibus, tellus ac cursus commodo, tortor mauris condimentum nibh, ut fermentum massa justo sit amet risus. Etiam porta sem malesuada magna mollis euismod. Donec sed odio dui. </p>
-      <p><a class="btn btn-default" href="#" role="button">View details »</a></p>
-    </div><!--/span-->
+  <header>
+      <h1>Media</h1>
+      <button type="button" class="btn btn-lg btn-default" ng-click="addMedia()">Add Media +</button>
+  </header>
+  <div class="row" ng-show="media">
+      <div class="col-6 col-sm-6 col-lg-4" ng-repeat='item in media'>
+        <h2>{{item.name}}</h2>
+        <img ng-src="{{item.poster}}" class="img-rounded img-responsive">
+        <p>{{item.description}}</p>
+      </div><!--/span-->
+  </div>
+  <div class="jumbotron" ng-hide="media"><h3 >No media files present :(</h3></div>
 </div>

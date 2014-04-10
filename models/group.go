@@ -1,7 +1,10 @@
 package models
 
 import (
-	"github.com/codegangsta/martini-contrib/binding"
+	"errors"
+	"github.com/extemporalgenome/slug"
+	"github.com/jinzhu/gorm"
+	"github.com/martini-contrib/binding"
 	"time"
 )
 
@@ -18,9 +21,9 @@ type Group struct {
 
 	PictureUrl string `json:"picture"`
 
-	CreatedAt time.Time
+	CreatedAt time.Time `json:"created"`
 
-	UpdatedAt time.Time
+	UpdatedAt time.Time `json:"updated"`
 }
 
 func (u Group) Validate(errors *binding.Errors) {
@@ -34,4 +37,26 @@ func (u Group) Validate(errors *binding.Errors) {
 	if len(u.Author) < 0 {
 		errors.Fields["author"] = "Author is required"
 	}
+}
+
+func (u *Group) BeforeCreate(tx *gorm.DB) (err error) {
+	var count int
+	tx.Model(u).Where("name = ?", u.Name).Count(&count)
+	if count > 0 {
+		err = errors.New("Conflicting Name!")
+		return
+	}
+	u.Slug = slug.Slug(u.Name)
+	return
+}
+
+func (u *Group) BeforeUpdate(tx *gorm.DB) (err error) {
+	var count int
+	tx.Model(u).Where("name = ?", u.Name).Count(&count)
+	if count > 1 {
+		err = errors.New("Conflicting Name!")
+		return
+	}
+	u.Slug = slug.Slug(u.Name)
+	return
 }

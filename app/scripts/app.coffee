@@ -1,6 +1,6 @@
 'use strict'
 
-angular
+app = angular
   .module('podcasterApp', [
     'ngCookies',
     'ngResource',
@@ -11,26 +11,27 @@ angular
     'chieffancypants.loadingBar',
     'restangular'
   ])
-  .config ($routeProvider, RestangularProvider) ->
-    RestangularProvider.setBaseUrl('/api')
+  .config ($routeProvider) ->
     $routeProvider
       .when '/',
         templateUrl: 'views/main.html'
         controller: 'MainCtrl'
         resolve: 
-          data: (Restangular)->
-              Restangular.all('latest').getList()
+          latest: (Restangular)->
+              Restangular.all('latest').getList() 
+          popular: (Restangular)->
+              Restangular.all('popular').getList()
       .when '/media',
         templateUrl: 'views/media.html'
         controller: 'MediaCtrl'
         resolve:
-          data: (Restangular)->
+          media: (Restangular)->
               Restangular.all('media').getList()
       .when '/podcasts',
         templateUrl: 'views/podcasts.html'
         controller: 'PodcastsCtrl'
         resolve:
-          data: (Restangular)->
+          groups: (Restangular)->
               Restangular.all('groups').getList()
       .when '/media/:mediaId',
         templateUrl: 'views/mediaone.html'
@@ -42,8 +43,23 @@ angular
         templateUrl: 'views/podcastone.html'
         controller: 'PodcastoneCtrl'
         resolve:
-          data: ($route, Restangular)->
+          podcast: ($route, Restangular)->
               Restangular.one('group', $route.current.params.slug).get()
+          media: ($route, Restangular)->
+              Restangular.one('group', $route.current.params.slug).one("media").get()
       .otherwise
         redirectTo: '/'
 
+app.run (Restangular, $alert, $location)->
+  Restangular.setBaseUrl('/api')
+  Restangular.setErrorInterceptor (res)->
+    if res.status = 404
+      $location.path('/')
+      $alert
+        title: res.statusText
+        content: res.data.error
+        placement: "top-right"
+        type: "warning"
+        duration: 5
+        show: true
+    return false

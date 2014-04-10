@@ -2,68 +2,67 @@ package routes
 
 import (
 	"../models"
+	"github.com/go-martini/martini"
 	"github.com/jinzhu/gorm"
 	"github.com/martini-contrib/render"
 	"net/http"
-	//"github.com/gorilla/feeds"
-	//"time"
 )
 
 func GroupsIndex(db gorm.DB, r render.Render) {
-	projects := []models.Group{}
-	db.Find(&projects)
-	r.JSON(http.StatusOK, projects)
+	group := []models.Group{}
+	db.Find(&group)
+	r.JSON(http.StatusOK, group)
 }
 
-// func GetFeed(enc Encoder, db gorp.SqlExecutor, parms martini.Params) (int, string) {
-// 	slug := parms["slug"]
-// 	var group models.Group
-// 	err := db.SelectOne(&group, "select * from group where slug=?", slug)
-// 	if err != nil {
-// 		// Invalid slug, or does not exist
-// 		checkErr(err, "missing group")
-// 		return http.StatusNotFound, ""
-// 	}
-// 	//entity := obj.(*models.Media)
-// 	now := time.Now()
-// 	feed := &feeds.Feed{
-// 		Title:       group.Name,
-// 		Link:        &feeds.Link{Href: "http://jmoiron.net/blog"},
-// 		Description: "discussion about tech, footie, photos",
-// 		Author:      &feeds.Author{"Jason Moiron", "jmoiron@jmoiron.net"},
-// 		Created:     now,
-// 	}
-// 	var media []models.Media
-// 	err_media := db.SelectOne(&media, "select * from media where group=?", slug)
-// 	if err_media != nil {
-// 		checkErr(err_media, "No media")
-// 		return http.StatusNotFound, ""
-// 	}
-// 	feed.Items = []*feeds.Item{
-// 		&feeds.Item{
-// 			Title:       "Limiting Concurrency in Go",
-// 			Link:        &feeds.Link{Href: "http://jmoiron.net/blog/limiting-concurrency-in-go/"},
-// 			Description: "A discussion on controlled parallelism in golang",
-// 			Author:      &feeds.Author{"Jason Moiron", "jmoiron@jmoiron.net"},
-// 			Created:     now,
-// 		},
-// 		&feeds.Item{
-// 			Title:       "Logic-less Template Redux",
-// 			Link:        &feeds.Link{Href: "http://jmoiron.net/blog/logicless-template-redux/"},
-// 			Description: "More thoughts on logicless templates",
-// 			Created:     now,
-// 		},
-// 		&feeds.Item{
-// 			Title:       "Idiomatic Code Reuse in Go",
-// 			Link:        &feeds.Link{Href: "http://jmoiron.net/blog/idiomatic-code-reuse-in-go/"},
-// 			Description: "How to use interfaces <em>effectively</em>",
-// 			Created:     now,
-// 		},
-// 	}
-// 	rss, err_parsing := feed.ToRss()
-// 	if err_parsing != nil {
-// 		checkErr(err_parsing, "generating failed")
-// 		return http.StatusInternalServerError, ""
-// 	}
-// 	return http.StatusOK, rss
-// }
+func GroupGet(db gorm.DB, r render.Render, params martini.Params) {
+	podcast := models.Group{}
+	if err := db.Where("slug = ?", params["slug"]).First(&podcast).Error; err != nil {
+		r.JSON(http.StatusNotFound, map[string]interface{}{"error": "Group not found"})
+		return
+	}
+	r.JSON(http.StatusOK, podcast)
+}
+
+func MediaForGroupGet(db gorm.DB, r render.Render, params martini.Params) {
+	podcast := models.Group{}
+	media := models.Media{}
+	if err := db.Where("slug = ?", params["slug"]).First(&podcast).Error; err != nil {
+		r.JSON(http.StatusNotFound, map[string]interface{}{"error": "Group not found"})
+		return
+	}
+	files := db.Model(&podcast).Related(&media)
+	r.JSON(http.StatusOK, files)
+}
+
+func GroupNew(r render.Render) {
+	group := new(models.Group)
+	r.JSON(http.StatusOK, group)
+}
+
+func GroupCreate(db gorm.DB, r render.Render, group models.Group) {
+	if err := db.Save(&group).Error; err != nil {
+		r.JSON(http.StatusConflict, map[string]interface{}{"error": "Group conflict"})
+		return
+	}
+	r.JSON(http.StatusCreated, group)
+}
+
+func GroupUpdate(db gorm.DB, r render.Render, params martini.Params, updatedGroup models.Group) {
+	var group models.Group
+	if err := db.First(&group, params["id"]).Error; err != nil {
+		r.JSON(http.StatusNotFound, map[string]interface{}{"error": "Group not found"})
+		return
+	}
+	db.Model(&group).Update(&updatedGroup)
+	r.JSON(http.StatusOK, group)
+}
+
+func GroupDelete(db gorm.DB, r render.Render, params martini.Params) {
+	var group models.Group
+	if err := db.First(&group, params["id"]).Error; err != nil {
+		r.JSON(http.StatusNotFound, map[string]interface{}{"error": "Group not found"})
+		return
+	}
+	db.Delete(group)
+	r.JSON(http.StatusNoContent, nil)
+}

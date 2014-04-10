@@ -1,4 +1,26 @@
-<header>
-	<h1>Podcasts</h1>
-	<button type="button" class="btn btn-lg btn-primary">Add Podcast +</button>
-</header>
+<div class="row">
+  <header>
+      <h1>Podcasts</h1>
+      <button type="button" class="btn btn-default" ng-click="addPodcast()">Add Podcast +</button>
+
+  </header>
+  <div class="jumbotron" ng-show="groups" ng-repeat='item in groups'>
+    <div class="row">
+      <div class="col-md-3">
+        <a href="#/podcast/{{item.slug}}">
+          <img src="http://placeimg.com/320/240/people?id={{item.id}}" class="img-rounded img-responsive">
+        </a>
+      </div>
+      <div class="col-md-9">
+        <a href="#/podcast/{{item.slug}}"><h2>{{item.name}}</h2></a>
+        <cite>by {{item.author}}</cite>
+        <p>{{item.text}}</p>
+        <p>
+          <a class="btn btn-default btn-sm" href="/feeds/{{item.slug}}" target="_blank" role="button"><span class="glyphicon glyphicon-headphones"></span> Subscribe with RSS</a>
+          <a class="btn btn-default btn-sm" href="/feeds/{{item.slug}}" target="_blank" role="button"><span class="glyphicon glyphicon-headphones"></span> Subscribe in iTunes</a>
+        </p>
+      </div>
+    </div>
+  </div>
+  <div class="jumbotron" ng-hide="groups"><h3 >No podcasts present :(</h3></div>
+</div>

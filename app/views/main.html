@@ -1,3 +1,27 @@
-<header>
-	<h1>Latest</h1>
-</header>
+<div class="row">
+	<header>
+		<h1>Popular</h1>
+	</header>
+	<div class="row" ng-show="popular">
+	    <div class="col-6 col-sm-6 col-lg-4" ng-repeat='item in popular'>
+	      <h2>{{item.name}}</h2>
+	      <img ng-src="{{item.poster}}" class="img-rounded img-responsive">
+	      <p>{{item.description}}</p>
+	    </div><!--/span-->
+	</div>
+	<div class="jumbotron" ng-hide="popular"><h3 >No media is popular yet :(</h3></div>
+</div>
+
+<div class="row">
+	<header>
+		<h1>Latest</h1>
+	</header>
+	<div class="row" ng-show="latest">
+	    <div class="col-6 col-sm-6 col-lg-4" ng-repeat='item in latest'>
+	      <h2>{{item.name}}</h2>
+	      <img ng-src="{{item.poster}}" class="img-rounded img-responsive">
+	      <p>{{item.description}}</p>
+	    </div><!--/span-->
+	</div>
+	<div class="jumbotron" ng-hide="latest"><h3 >No media files present :(</h3></div>
+</div>

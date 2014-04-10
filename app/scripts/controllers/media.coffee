@@ -1,5 +1,5 @@
 'use strict'
 
 angular.module('podcasterApp')
-  .controller 'MediaCtrl', ($scope, data) ->
-  	console.log data
+  .controller 'MediaCtrl', ($scope, media) ->
+    $scope.media = media

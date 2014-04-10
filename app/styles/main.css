@@ -1,20 +1,45 @@
 /* Space out content a bit */
+
 body {
   padding-top: 40px;
   padding-bottom: 40px;
 }
-.container{
-  margin-top:30px;
+
+.container {
+  margin-top: 30px;
 }
+
 /* Custom page footer */
+
 .footer {
   position: fixed;
-  bottom:0;
+  bottom: 0;
   padding-top: 15px;
-  padding-left:10px;
+  padding-left: 10px;
   color: #777;
-  width:100%;
+  width: 100%;
   border-top: 1px solid #e5e5e5;
   background: #fff;
 }
 
+.jumbotron {
+  padding: 1em!important;
+}
+
+.jumbotron h2 {
+  margin-top: 0;
+}
+
+header {
+  margin-bottom: .5em;
+}
+
+ul.unstyled {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+ul.unstyled li{
+  padding: .3em;
+
+}
