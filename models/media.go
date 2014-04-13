@@ -6,6 +6,8 @@ import (
 	"github.com/extemporalgenome/slug"
 	"github.com/jinzhu/gorm"
 	"github.com/martini-contrib/binding"
+	"strconv"
+	"strings"
 	"time"
 )
 
@@ -18,7 +20,7 @@ type Media struct {
 
 	Text string `json:"text"`
 
-	GroupId Group `sql:"not null" json:"group"`
+	GroupId int64 `sql:"not null" json:"group"`
 
 	Tags string `json:"tags"`
 
@@ -26,9 +28,9 @@ type Media struct {
 
 	Played int64 `json:"play_count"`
 
-	Duration float64 `json:"duration"`
+	Duration string `json:"duration"`
 
-	Waveform []string `json:"wave"`
+	Waveform string `json:"wave"`
 
 	Url string `json:"url"`
 
@@ -68,8 +70,8 @@ func (u *Media) BeforeCreate(tx *gorm.DB) (err error) {
 		err = errors.New("File duration is invalid!")
 		return
 	}
-	u.Waveform = data
-	u.Duration = duration
+	u.Waveform = strings.Join(data, ",")
+	u.Duration = strconv.FormatFloat(duration, 'f', 3, 32)
 	return
 }
 

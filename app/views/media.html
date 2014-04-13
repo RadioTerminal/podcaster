@@ -6,8 +6,9 @@
   <div class="row" ng-show="media">
       <div class="col-6 col-sm-6 col-lg-4" ng-repeat='item in media'>
         <h2>{{item.name}}</h2>
-        <img ng-src="{{item.poster}}" class="img-rounded img-responsive">
-        <p>{{item.description}}</p>
+        <img ng-src="{{item.cover_url}}" class="img-rounded img-responsive">
+        <p>{{item.text}}</p>
+        <waveformplayer waveform="{{item.wave}}" source="/api/media/play/{{item.id}}" />
       </div><!--/span-->
   </div>
   <div class="jumbotron" ng-hide="media"><h3 >No media files present :(</h3></div>

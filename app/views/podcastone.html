@@ -24,7 +24,7 @@
       <div class="col-6 col-sm-6 col-lg-4" ng-repeat='item in media'>
         <h2>{{item.name}}</h2>
         <img ng-src="{{item.poster}}" class="img-rounded img-responsive">
-        <audio style="width: 100%;" ng-src="{{item.audio}}" controls/>
+        <waveformplayer waveform="{{item.wave}}" source="/api/media/play/{{item.id}}" />
         <p>{{item.description}}</p>
       </div><!--/span-->
   </div>

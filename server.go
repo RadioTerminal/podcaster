@@ -68,6 +68,7 @@ func init() {
 		r.Get(`/popular`, routes.PopularIndex)
 
 		r.Get(`/media`, routes.MediaIndex)
+		r.Get(`/media/play/:id`, routes.MediaPlay)
 		r.Post(`/media`, utils.LoginRequired(PublicKey), binding.Bind(models.Media{}), routes.MediaCreate)
 		r.Get("/media/new", utils.LoginRequired(PublicKey), routes.MediaNew)
 		r.Get(`/media/:slug`, routes.MediaGet)

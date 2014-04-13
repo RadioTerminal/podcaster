@@ -6,6 +6,7 @@ import (
 	"github.com/jinzhu/gorm"
 	"github.com/martini-contrib/render"
 	"net/http"
+	"strconv"
 )
 
 func MediaIndex(db gorm.DB, r render.Render) {
@@ -14,14 +15,26 @@ func MediaIndex(db gorm.DB, r render.Render) {
 	r.JSON(http.StatusOK, media)
 }
 
+func MediaPlay(db gorm.DB, r render.Render, params martini.Params) {
+	media := models.Media{}
+	id, _ := strconv.Atoi(params["id"])
+	if err := db.First(&media, id).Error; err != nil {
+		r.Error(http.StatusNotFound)
+		return
+	}
+	db.Model(&media).Update(&models.Media{Played: media.Played + 1})
+	r.Redirect(media.Url)
+}
+
 func MediaGet(db gorm.DB, r render.Render, params martini.Params) {
-	podcast := models.Media{}
-	if err := db.Where("slug = ?", params["slug"]).First(&podcast).Error; err != nil {
+	media := models.Media{}
+	if err := db.Where("slug = ?", params["slug"]).First(&media).Error; err != nil {
 		r.JSON(http.StatusNotFound, map[string]interface{}{"error": "Media not found"})
 		return
 	}
-	r.JSON(http.StatusOK, podcast)
+	r.JSON(http.StatusOK, media)
 }
+
 func MediaNew(r render.Render) {
 	media := new(models.Media)
 	r.JSON(http.StatusOK, media)
