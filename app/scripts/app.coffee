@@ -50,7 +50,11 @@ app = angular
       .otherwise
         redirectTo: '/'
 
-app.run (Restangular, $alert, $location)->
+app.run (Restangular, $alert, $location, $rootScope)->
+  $rootScope.$watch 'description', () ->
+    angular.element("head meta[name=description]").attr("content", $rootScope.description)
+  $rootScope.$watch 'title', () ->
+    angular.element("head title").text($rootScope.title)  
   Restangular.setBaseUrl('/api')
   Restangular.setErrorInterceptor (res)->
     if res.status = 404

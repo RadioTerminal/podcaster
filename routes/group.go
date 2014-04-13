@@ -25,13 +25,13 @@ func GroupGet(db gorm.DB, r render.Render, params martini.Params) {
 
 func MediaForGroupGet(db gorm.DB, r render.Render, params martini.Params) {
 	podcast := models.Group{}
-	media := models.Media{}
+	media := []models.Media{}
 	if err := db.Where("slug = ?", params["slug"]).First(&podcast).Error; err != nil {
 		r.JSON(http.StatusNotFound, map[string]interface{}{"error": "Group not found"})
 		return
 	}
-	files := db.Model(&podcast).Related(&media)
-	r.JSON(http.StatusOK, files)
+	db.Model(&podcast).Related(&media)
+	r.JSON(http.StatusOK, media)
 }
 
 func GroupNew(r render.Render) {

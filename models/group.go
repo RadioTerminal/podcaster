@@ -11,9 +11,9 @@ import (
 type Group struct {
 	Id int64 `json:"id"`
 
-	Name string `json:"name" binding:"required"`
+	Name string `sql:"not null;unique" json:"name" binding:"required"`
 
-	Slug string `json:"slug"`
+	Slug string `sql:"not null;unique" json:"slug"`
 
 	Description string `json:"description"`
 

@@ -1,6 +1,7 @@
 package models
 
 import (
+	"../utils"
 	"errors"
 	"github.com/extemporalgenome/slug"
 	"github.com/jinzhu/gorm"
@@ -11,19 +12,23 @@ import (
 type Media struct {
 	Id int64 `json:"id"`
 
-	Played int64 `json:"play_count"`
-
 	Name string `json:"name"`
 
 	Slug string `json:"slug"`
 
 	Text string `json:"text"`
 
-	GroupId Group `json:"group"`
+	GroupId Group `sql:"not null" json:"group"`
 
 	Tags string `json:"tags"`
 
 	Author string `json:"author"`
+
+	Played int64 `json:"play_count"`
+
+	Duration float64 `json:"duration"`
+
+	Waveform []string `json:"wave"`
 
 	Url string `json:"url"`
 
@@ -45,9 +50,6 @@ func (u Media) Validate(errors *binding.Errors) {
 	if len(u.Author) < 0 {
 		errors.Fields["author"] = "Author is required"
 	}
-	if len(u.Url) < 0 {
-		errors.Fields["url"] = "Media url is required"
-	}
 	if len(u.CoverUrl) < 0 {
 		errors.Fields["cover_url"] = "Picture is required"
 	}
@@ -61,6 +63,13 @@ func (u *Media) BeforeCreate(tx *gorm.DB) (err error) {
 		return
 	}
 	u.Slug = slug.Slug(u.Name)
+	data, duration := utils.GenerateSamplesAsString(u.Url, 4)
+	if !(duration > 0) {
+		err = errors.New("File duration is invalid!")
+		return
+	}
+	u.Waveform = data
+	u.Duration = duration
 	return
 }
 

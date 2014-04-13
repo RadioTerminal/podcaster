@@ -1,6 +1,6 @@
 'use strict'
 
-describe 'Directive: fallbackSrc', ->
+describe 'Directive: bootswatch', ->
 
   # load the directive's module
   beforeEach module 'podcasterApp'
@@ -11,6 +11,6 @@ describe 'Directive: fallbackSrc', ->
     scope = $rootScope.$new()
 
   it 'should make hidden element visible', inject ($compile) ->
-    element = angular.element '<fallback-src></fallback-src>'
+    element = angular.element '<bootswatch></bootswatch>'
     element = $compile(element) scope
-    expect(element.text()).toBe 'this is the fallbackSrc directive'
+    expect(element.text()).toBe 'this is the bootswatch directive'

@@ -3,15 +3,19 @@ package main
 import (
 	"./models"
 	"./routes"
+	"./utils"
+	"fmt"
 	"github.com/go-martini/martini"
 	"github.com/joho/godotenv"
 	"github.com/martini-contrib/binding"
 	"github.com/martini-contrib/gzip"
 	"github.com/martini-contrib/render"
 	"github.com/pilu/fresh/runner/runnerutils"
+	"github.com/superlogical/analytics"
 	"log"
 	"net/http"
 	"os"
+	"time"
 )
 
 // The one and only martini instance.
@@ -23,19 +27,33 @@ func runnerMiddleware(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func init() {
+var PublicKey []byte
+var PrivateKey []byte
 
+func init() {
 	envFileName := martini.Env + ".env"
 	err := godotenv.Load(envFileName)
 	if err != nil {
 		log.Fatalf("Error loading: %s", envFileName)
 	}
+	utils.GenKeyPairIfNone(os.Getenv("PRIVATE_KEY"), os.Getenv("PUBLIC_KEY"))
+	PrivateKey = utils.GetKey(os.Getenv("PRIVATE_KEY"))
+	PublicKey = utils.GetKey(os.Getenv("PUBLIC_KEY"))
+	claims := map[string]interface{}{
+		"user_id": 1,
+		"role":    "admin",
+		"exp":     time.Now().UTC().Add(time.Hour * 6).Unix(),
+		"iat":     time.Now().UTC().Unix(),
+	}
+	auth, _ := utils.GenerateAuthToken(claims, PrivateKey)
+	fmt.Println(auth)
 
 	m = martini.New()
 	// Setup middleware
 	if os.Getenv("DEV_RUNNER") == "1" {
 		m.Use(runnerMiddleware)
 	}
+	m.Use(analytics.Google("UA-xxxxxxxx-1"))
 	m.Use(gzip.All())
 	m.Use(martini.Recovery())
 	m.Use(martini.Logger())
@@ -49,20 +67,20 @@ func init() {
 		r.Get(`/latest`, routes.LatestIndex)
 		r.Get(`/popular`, routes.PopularIndex)
 
-		r.Get(`/media`, routes.GroupsIndex)
-		r.Post(`/media`, binding.Bind(models.Group{}), routes.GroupCreate)
-		r.Get("/media/new", routes.GroupNew)
-		r.Get(`/media/:slug`, routes.GroupGet)
-		r.Put(`/media/:id`, binding.Bind(models.Group{}), routes.GroupUpdate)
-		r.Delete(`/media/:id`, routes.GroupDelete)
+		r.Get(`/media`, routes.MediaIndex)
+		r.Post(`/media`, utils.LoginRequired(PublicKey), binding.Bind(models.Media{}), routes.MediaCreate)
+		r.Get("/media/new", utils.LoginRequired(PublicKey), routes.MediaNew)
+		r.Get(`/media/:slug`, routes.MediaGet)
+		r.Put(`/media/:id`, utils.LoginRequired(PublicKey), binding.Bind(models.Media{}), routes.MediaUpdate)
+		r.Delete(`/media/:id`, utils.LoginRequired(PublicKey), routes.MediaDelete)
 
 		r.Get(`/groups`, routes.GroupsIndex)
-		r.Post(`/groups`, binding.Bind(models.Group{}), routes.GroupCreate)
-		r.Get("/groups/new", routes.GroupNew)
+		r.Post(`/groups`, utils.LoginRequired(PublicKey), binding.Bind(models.Group{}), routes.GroupCreate)
+		r.Get("/groups/new", utils.LoginRequired(PublicKey), routes.GroupNew)
 		r.Get(`/group/:slug`, routes.GroupGet)
 		r.Get(`/group/:slug/media`, routes.MediaForGroupGet)
-		r.Put(`/group/:id`, binding.Bind(models.Group{}), routes.GroupUpdate)
-		r.Delete(`/group/:id`, routes.GroupDelete)
+		r.Put(`/group/:id`, utils.LoginRequired(PublicKey), binding.Bind(models.Group{}), routes.GroupUpdate)
+		r.Delete(`/group/:id`, utils.LoginRequired(PublicKey), routes.GroupDelete)
 	})
 
 	gr.Get(`/feed/:slug`, routes.FeedForGroupGet)

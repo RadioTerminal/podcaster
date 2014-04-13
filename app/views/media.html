@@ -1,7 +1,7 @@
 <div class="row">
   <header>
       <h1>Media</h1>
-      <button type="button" class="btn btn-lg btn-default" ng-click="addMedia()">Add Media +</button>
+      <button ng-show="$root.auth" type="button" class="btn btn-primary" ng-click="addMedia()">Add Media +</button>
   </header>
   <div class="row" ng-show="media">
       <div class="col-6 col-sm-6 col-lg-4" ng-repeat='item in media'>

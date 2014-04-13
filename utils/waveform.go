@@ -15,6 +15,7 @@ package utils
 typedef struct {
   int size;
   float *data;
+  float duration;
 } Samples;
 
 int getSoundPoints(Samples* soundPoints, char* in_file_path, int fps) {
@@ -25,7 +26,9 @@ int getSoundPoints(Samples* soundPoints, char* in_file_path, int fps) {
     int frames_until_emit;
     int emit_every;
 
+    printf("Using libgroove v%s\n", groove_version());
     groove_init();
+    groove_set_logging(GROOVE_LOG_INFO);
     struct GrooveFile *file = groove_file_open(in_file_path);
     if (! file) {
         fprintf(stderr, "Error opening input file: %s\n", in_file_path);
@@ -67,6 +70,7 @@ int getSoundPoints(Samples* soundPoints, char* in_file_path, int fps) {
     // Initialize vector
     soundPoints->size = 0;
     soundPoints->data = calloc(samples_to_take+1, sizeof(float));
+    soundPoints->duration = groove_file_duration(file);
     int i;
     while (groove_sink_buffer_get(sink, &buffer, 1) == GROOVE_BUFFER_YES) {
         // process the buffer
@@ -109,20 +113,23 @@ float getSample(Samples *vector, int index){
 import "C"
 
 import (
+	"runtime"
 	"strconv"
 	"unsafe"
 )
 
 type Samples struct {
-	size int
-	data *float64
+	size     int
+	data     *float64
+	duration float64
 }
 
-func GenerateSamplesAsFloat(file string) []float64 {
-	// internal file caring
+func GenerateSamplesAsFloat(file string) ([]float64, float64) {
+	var sample Samples
+	runtime.LockOSThread()
 	_file := C.CString(file)
 	defer C.free(unsafe.Pointer(_file))
-	var sample Samples
+
 	C.getSoundPoints((*_Ctype_Samples)(unsafe.Pointer(&sample)), _file, 8)
 	defer C.free(unsafe.Pointer(sample.data))
 	var data []float64
@@ -130,13 +137,15 @@ func GenerateSamplesAsFloat(file string) []float64 {
 		var f float64 = (float64)(C.getSample((*_Ctype_Samples)(unsafe.Pointer(&sample)), C.int(i)))
 		data = append(data, f)
 	}
-	return data
+	runtime.UnlockOSThread()
+	return data, sample.duration
 }
 
-func GenerateSamplesAsString(file string, precision int) []string {
+func GenerateSamplesAsString(file string, precision int) ([]string, float64) {
 	var data []string
-	for _, f := range GenerateSamplesAsFloat(file) {
+	datas, duration := GenerateSamplesAsFloat(file)
+	for _, f := range datas {
 		data = append(data, strconv.FormatFloat(f, 'f', precision, 32))
 	}
-	return data
+	return data, duration
 }

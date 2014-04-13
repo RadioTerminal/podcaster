@@ -1,6 +1,7 @@
 'use strict'
 
 angular.module('podcasterApp')
-  .controller 'PodcastsCtrl', ($scope, groups, $log) ->
+  .controller 'PodcastsCtrl', ($scope, groups, $rootScope) ->
     $scope.groups = groups
-    $log.info groups
+    $rootScope.title = "Podcaster - Podcasts"
+    $rootScope.description = "Podcaster, the RESTfull app"
