@@ -1,1 +1,4 @@
-<p>This is the mediaOne view.</p>
+<h2>{{item.name}}</h2>
+<img ng-src="{{item.poster}}" class="img-rounded img-responsive">
+<waveformplayer waveform="{{item.wave}}" source="/api/media/play/{{item.id}}" />
+<p>{{item.description}}</p>

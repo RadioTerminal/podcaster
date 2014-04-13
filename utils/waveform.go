@@ -130,7 +130,7 @@ func GenerateSamplesAsFloat(file string) ([]float64, float64) {
 	_file := C.CString(file)
 	defer C.free(unsafe.Pointer(_file))
 
-	C.getSoundPoints((*_Ctype_Samples)(unsafe.Pointer(&sample)), _file, 8)
+	C.getSoundPoints((*_Ctype_Samples)(unsafe.Pointer(&sample)), _file, 4)
 	defer C.free(unsafe.Pointer(sample.data))
 	var data []float64
 	for i := 0; i < sample.size-1; i++ {
