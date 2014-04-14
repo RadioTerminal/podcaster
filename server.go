@@ -4,9 +4,12 @@ import (
 	"./models"
 	"./routes"
 	"./utils"
+	"./worker"
 	"fmt"
 	"github.com/go-martini/martini"
+	"github.com/jinzhu/gorm"
 	"github.com/joho/godotenv"
+	"github.com/jrallison/go-workers"
 	"github.com/martini-contrib/binding"
 	"github.com/martini-contrib/gzip"
 	"github.com/martini-contrib/render"
@@ -29,6 +32,7 @@ func runnerMiddleware(w http.ResponseWriter, r *http.Request) {
 
 var PublicKey []byte
 var PrivateKey []byte
+var db gorm.DB
 
 func init() {
 	envFileName := martini.Env + ".env"
@@ -36,6 +40,7 @@ func init() {
 	if err != nil {
 		log.Fatalf("Error loading: %s", envFileName)
 	}
+	db = models.Connect()
 	utils.GenKeyPairIfNone(os.Getenv("PRIVATE_KEY"), os.Getenv("PUBLIC_KEY"))
 	PrivateKey = utils.GetKey(os.Getenv("PRIVATE_KEY"))
 	PublicKey = utils.GetKey(os.Getenv("PUBLIC_KEY"))
@@ -53,13 +58,13 @@ func init() {
 	if os.Getenv("DEV_RUNNER") == "1" {
 		m.Use(runnerMiddleware)
 	}
-	m.Use(analytics.Google("UA-xxxxxxxx-1"))
+	m.Use(analytics.Google(os.Getenv("GA")))
 	m.Use(gzip.All())
 	m.Use(martini.Recovery())
 	m.Use(martini.Logger())
 	m.Use(render.Renderer())
 	m.Use(martini.Static("public"))
-	m.Map(models.Connect())
+	m.Map(&db)
 	// Setup routes
 	gr := martini.NewRouter()
 	gr.Group("/api", func(r martini.Router) {
@@ -68,6 +73,7 @@ func init() {
 		r.Get(`/popular`, routes.PopularIndex)
 
 		r.Get(`/media`, routes.MediaIndex)
+		r.Get(`/media/head/:id`, routes.MediaHead)
 		r.Get(`/media/play/:id`, routes.MediaPlay)
 		r.Post(`/media`, utils.LoginRequired(PublicKey), binding.Bind(models.Media{}), routes.MediaCreate)
 		r.Get("/media/new", utils.LoginRequired(PublicKey), routes.MediaNew)
@@ -85,6 +91,7 @@ func init() {
 	})
 
 	gr.Get(`/feed/:slug`, routes.FeedForGroupGet)
+	gr.Get(`/stats`, workers.Stats)
 	// Inject database
 
 	// Add the router action
@@ -92,5 +99,6 @@ func init() {
 }
 
 func main() {
+	worker.Worky(&db)
 	m.Run()
 }

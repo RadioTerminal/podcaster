@@ -58,3 +58,10 @@ header {
   float: right;
   margin-top: 4px;
 }
+
+.wrap{
+  margin-right: .4em;
+}
+.justify{
+  text-align: justify;
+}

@@ -314,6 +314,11 @@ module.exports = function (grunt) {
           cwd: '.tmp/images',
           dest: '<%= yeoman.dist %>/images',
           src: ['generated/*']
+        }, {
+          expand: true,
+          cwd: '.tmp/concat',
+          dest: '<%= yeoman.dist %>',
+          src: ['scripts/*']
         }]
       },
       styles: {
@@ -416,7 +421,6 @@ module.exports = function (grunt) {
     'copy:dist',
     'cdnify',
     'cssmin',
-    'uglify',
     'rev',
     'usemin',
     'htmlmin'

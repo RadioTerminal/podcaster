@@ -6,11 +6,13 @@ angular.module('podcasterApp')
     scope: { item: '=' }
     templateUrl: "/views/player.html"
     link: (scope, element, attr) ->
-      scope.audio = new Audio()  
-      scope.audio.preload = "none" 
-      scope.audio.src = attr.source
+      scope.audio = new Audio()
+      scope.preload = "metadata"
       scope.now = 0
-      scope.duration=0
+      scope.duration = 0
+      scope.cursor = 0
+      scope.cursor_over = false
+
       patchCanvasForIE = (canvas) ->
          if typeof window.G_vmlCanvasManager != "undefined"
           canvas = window.G_vmlCanvasManager.initElement(canvas)
@@ -61,8 +63,6 @@ angular.module('podcasterApp')
 
       redraw= () =>
           clear()
-          scope.duration = toHHMMSS(scope.audio.duration)
-          scope.now = toHHMMSS(scope.audio.currentTime)
           if typeof(innerColor) == "function"
             context.fillStyle = innerColor()
           else
@@ -83,14 +83,13 @@ angular.module('podcasterApp')
 
       # tell audio element to play/pause, you can also use $scope.audio.play() or $scope.audio.pause();
       scope.playpause = ->
-        a = (if scope.audio.paused then scope.audio.play() else scope.audio.pause())
-        return
+        if scope.audio.paused
+          if scope.audio.src == "/api/media/head/#{scope.item.id}"
+            scope.audio.src = "/api/media/play/#{scope.item.id}"
+          scope.audio.play()
+        else
+          scope.audio.pause()
 
-      getPosition = (event) ->
-        oncanvas = ((100/width) *event.offsetX)
-        scope.audio.currentTime = (scope.audio.duration/100) * oncanvas
-
-      scope.audio.addEventListener "timeupdate", redraw, false
       scope.audio.addEventListener "ended", ()->
         scope.$apply ->
           scope.audio.paused = true
@@ -104,16 +103,56 @@ angular.module('podcasterApp')
       width  = parseInt context.canvas.width, 10
       height = parseInt context.canvas.height, 10
       outerColor = "transparent"
+      gradient = context.createLinearGradient(0, 0, 0, height);
+      gradient.addColorStop(0.0, "#f60");
+      gradient.addColorStop(1.0, "#ff1b00");
       innerColor = (x, y) ->
-        if x < scope.audio.currentTime / scope.audio.duration
-          return "rgba(255,  102, 0, 0.8)"
-        else
-          return "rgba(0, 0, 0, 0.4)"
+        try
+          buffered = scope.audio.buffered.end(0)
+        catch e
+          buffered = 0
+        if (x < scope.cursor / width) && scope.cursor_over
+          return "#f60"
+        else if x < scope.audio.currentTime / scope.audio.duration
+          return gradient
+        else if x < buffered / scope.audio.duration
+          return "rgba(0, 0, 0, 0.7)"
+        else  
+          return "rgba(0, 0, 0, 0.5)"
       data = []
-      canvas.addEventListener "mousedown", getPosition, false
+      canvas.addEventListener "mousedown", (event) ->
+        oncanvas = ((100/width) *event.offsetX)
+        if scope.audio.paused
+          scope.playpause()
+        scope.audio.currentTime = (scope.audio.duration/100) * oncanvas
+      , false
+
+      canvas.addEventListener "mouseover", (event) ->
+        scope.cursor_over = true
+        scope.cursor = event.offsetX 
+        redraw()
+      , false
+      canvas.addEventListener "mouseout", (event) ->
+        scope.cursor_over = false
+        scope.cursor = event.offsetX 
+        redraw()
+      , false
+      canvas.addEventListener "mousemove", (event) ->
+        scope.cursor = event.offsetX 
+        redraw()
+      , false
+
+      scope.audio.addEventListener "timeupdate", ()->
+        redraw() 
+        scope.$apply ->
+          scope.duration = toHHMMSS(scope.audio.duration)
+          scope.now = toHHMMSS(scope.audio.currentTime)
+      , false
 
       scope.$watch 'item', (item)->
         data = interpolateArray(item.wave.split(","), width)
+        scope.item = item
+        scope.audio.src = "/api/media/head/#{item.id}"
         redraw()
 
       scope.$on '$destroy', ()->

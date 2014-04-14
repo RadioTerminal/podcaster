@@ -1,10 +1,10 @@
 @font-face {
   font-family: 'podcaster';
-  src: url('podcaster.eot?70002910');
-  src: url('podcaster.eot?70002910#iefix') format('embedded-opentype'),
-       url('podcaster.woff?70002910') format('woff'),
-       url('podcaster.ttf?70002910') format('truetype'),
-       url('podcaster.svg?70002910#podcaster') format('svg');
+  src: url('/fonts/podcaster.eot?70002910');
+  src: url('/fonts/podcaster.eot?70002910#iefix') format('embedded-opentype'),
+       url('/fonts/podcaster.woff?70002910') format('woff'),
+       url('/fonts/podcaster.ttf?70002910') format('truetype'),
+       url('/fonts/podcaster.svg?70002910#podcaster') format('svg');
   font-weight: normal;
   font-style: normal;
 }

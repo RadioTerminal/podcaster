@@ -1,5 +1,9 @@
-<h2>{{item.name}}</h2>
-<img ng-src="{{item.poster}}" class="img-rounded img-responsive">
-<waveformplayer item="item" source="/api/media/play/{{item.id}}" />
-<a class="btn btn-primary btn-xs playpause" href="/api/media/play/{{item.id}}" target="_blank"><span class="glyphicon glyphicon-download"></span> Download</a>
-<div class="media-body" ng-bind-html="item.text"></div>
+<h3>{{item.name}}</h3>
+<waveformplayer item="item" source="/api/media/play/{{item.id}}"/>
+<div class="form-group player-controls">
+	<a class="btn btn-primary btn-xs" href="/api/media/play/{{item.id}}" target="_blank"><span class="glyphicon glyphicon-download"></span> Download</a>&nbsp;<a class="btn btn-primary btn-xs" href="/api/media/play/{{item.id}}" target="_blank"><span class="glyphicon glyphicon-share"></span> Embed</a>
+</div>
+<div class="clearfix" style="margin-top:.7em;">
+	<img ng-src="{{item.cover_url}}" class="pull-left img-thumbnail img-responsive wrap"/>
+	<div class="justify" ng-bind-html="item.text"></div>
+</div>

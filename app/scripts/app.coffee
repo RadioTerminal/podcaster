@@ -2,14 +2,12 @@
 
 app = angular
   .module('podcasterApp', [
-    'ngCookies',
-    'ngResource',
     'ngSanitize',
     'ngRoute',
     'mgcrea.ngStrap',
     'ngAnimate',
     'chieffancypants.loadingBar',
-    'restangular'
+    'restangular',
   ])
   .config ($routeProvider) ->
     $routeProvider

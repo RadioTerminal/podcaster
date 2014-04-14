@@ -26,6 +26,16 @@ func MediaPlay(db gorm.DB, r render.Render, params martini.Params) {
 	r.Redirect(media.Url)
 }
 
+func MediaHead(db gorm.DB, r render.Render, params martini.Params) {
+	media := models.Media{}
+	id, _ := strconv.Atoi(params["id"])
+	if err := db.First(&media, id).Error; err != nil {
+		r.Error(http.StatusNotFound)
+		return
+	}
+	r.Redirect(media.Url)
+}
+
 func MediaGet(db gorm.DB, r render.Render, params martini.Params) {
 	media := models.Media{}
 	if err := db.Where("slug = ?", params["slug"]).First(&media).Error; err != nil {

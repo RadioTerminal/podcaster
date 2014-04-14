@@ -1,13 +1,11 @@
 package models
 
 import (
-	"../utils"
 	"errors"
 	"github.com/extemporalgenome/slug"
 	"github.com/jinzhu/gorm"
+	"github.com/jrallison/go-workers"
 	"github.com/martini-contrib/binding"
-	"strconv"
-	"strings"
 	"time"
 )
 
@@ -28,7 +26,7 @@ type Media struct {
 
 	Played int64 `json:"play_count"`
 
-	Duration string `json:"duration"`
+	Duration float64 `json:"duration"`
 
 	Waveform string `json:"wave"`
 
@@ -65,13 +63,11 @@ func (u *Media) BeforeCreate(tx *gorm.DB) (err error) {
 		return
 	}
 	u.Slug = slug.Slug(u.Name)
-	data, duration := utils.GenerateSamplesAsString(u.Url, 4)
-	if !(duration > 0) {
-		err = errors.New("File duration is invalid!")
-		return
-	}
-	u.Waveform = strings.Join(data, ",")
-	u.Duration = strconv.FormatFloat(duration, 'f', 3, 32)
+	return
+}
+
+func (u *Media) AfterCreate(tx *gorm.DB) (err error) {
+	workers.Enqueue("GenerateWaveform", "GenerateWaveform", u.Id)
 	return
 }
 
