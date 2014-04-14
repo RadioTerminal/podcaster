@@ -46,12 +46,15 @@ header {
   margin-bottom: .5em;
 }
 
-ul.unstyled {
-  list-style: none;
-  margin: 0;
-  padding: 0;
+.player-controls {
+  margin-bottom: 0px;
 }
 
-ul.unstyled li {
-  padding: .3em;
+.player-controls .timer {
+  background-color: #333;
+  color: #aaa;
+  border-radius: 5px;
+  padding: 2px;
+  float: right;
+  margin-top: 4px;
 }

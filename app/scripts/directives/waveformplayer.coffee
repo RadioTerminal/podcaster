@@ -3,10 +3,14 @@
 angular.module('podcasterApp')
   .directive('waveformplayer', ->
     restrict: "E"
+    scope: { item: '=' }
     templateUrl: "/views/player.html"
     link: (scope, element, attr) ->
       scope.audio = new Audio()  
+      scope.audio.preload = "none" 
       scope.audio.src = attr.source
+      scope.now = 0
+      scope.duration=0
       patchCanvasForIE = (canvas) ->
          if typeof window.G_vmlCanvasManager != "undefined"
           canvas = window.G_vmlCanvasManager.initElement(canvas)
@@ -22,6 +26,17 @@ angular.module('podcasterApp')
          canvas.width  = width || 370
          canvas.height = height || 80
          canvas
+
+      toHHMMSS = (times)->
+        sec_num = parseInt(times, 10) # don't forget the second param
+        hours = Math.floor(sec_num / 3600)
+        minutes = Math.floor((sec_num - (hours * 3600)) / 60)
+        seconds = sec_num - (hours * 3600) - (minutes * 60)
+        hours = "0" + hours  if hours < 10
+        minutes = "0" + minutes  if minutes < 10
+        seconds = "0" + seconds  if seconds < 10
+        time = hours + ":" + minutes + ":" + seconds
+        time
 
       linearInterpolate= (before, after, atPoint) ->
           before + (after - before) * atPoint
@@ -46,6 +61,8 @@ angular.module('podcasterApp')
 
       redraw= () =>
           clear()
+          scope.duration = toHHMMSS(scope.audio.duration)
+          scope.now = toHHMMSS(scope.audio.currentTime)
           if typeof(innerColor) == "function"
             context.fillStyle = innerColor()
           else
@@ -68,6 +85,19 @@ angular.module('podcasterApp')
       scope.playpause = ->
         a = (if scope.audio.paused then scope.audio.play() else scope.audio.pause())
         return
+
+      getPosition = (event) ->
+        oncanvas = ((100/width) *event.offsetX)
+        scope.audio.currentTime = (scope.audio.duration/100) * oncanvas
+
+      scope.audio.addEventListener "timeupdate", redraw, false
+      scope.audio.addEventListener "ended", ()->
+        scope.$apply ->
+          scope.audio.paused = true
+          scope.audio.currentTime = 0
+          redraw()
+      , false
+
       canvas = createCanvas(element, element.parent().clientWidth, element.clientHeight)
       patchCanvasForIE(canvas)
       context = canvas.getContext("2d")
@@ -79,21 +109,12 @@ angular.module('podcasterApp')
           return "rgba(255,  102, 0, 0.8)"
         else
           return "rgba(0, 0, 0, 0.4)"
-      data = interpolateArray(attr.waveform.split(","), width)
-      redraw()
-
-      getPosition = (event) ->
-        oncanvas = ((100/width) *event.offsetX)
-        scope.audio.currentTime = (scope.audio.duration/100) * oncanvas
-
+      data = []
       canvas.addEventListener "mousedown", getPosition, false
-      scope.audio.addEventListener "timeupdate", redraw, false
-      scope.audio.addEventListener "ended", ()->
-        scope.$apply ->
-          scope.audio.paused = true
-          scope.audio.currentTime = 0
-          redraw()
-      , false
+
+      scope.$watch 'item', (item)->
+        data = interpolateArray(item.wave.split(","), width)
+        redraw()
 
       scope.$on '$destroy', ()->
         

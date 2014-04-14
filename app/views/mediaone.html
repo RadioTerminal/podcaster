@@ -1,4 +1,5 @@
 <h2>{{item.name}}</h2>
 <img ng-src="{{item.poster}}" class="img-rounded img-responsive">
-<waveformplayer waveform="{{item.wave}}" source="/api/media/play/{{item.id}}" />
-<p>{{item.description}}</p>
+<waveformplayer item="item" source="/api/media/play/{{item.id}}" />
+<a class="btn btn-primary btn-xs playpause" href="/api/media/play/{{item.id}}" target="_blank"><span class="glyphicon glyphicon-download"></span> Download</a>
+<div class="media-body" ng-bind-html="item.text"></div>
