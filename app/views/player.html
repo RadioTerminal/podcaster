@@ -1,5 +1,5 @@
 <div class="form-group player-controls">
-    <button class="btn btn-primary btn-xl playpause" ng-click="playpause()">
+    <button class="btn btn-primary btn-xl playpause" analytics-on="click" analytics-event="Play" ng-click="playpause()">
         <span ng-show="audio.paused" class="play-text"><i class="glyphicon glyphicon-play"></i></span>
         <span ng-hide="audio.paused" class="pause-text"><i class="glyphicon glyphicon-pause"></i></span>
     </button>

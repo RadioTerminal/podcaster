@@ -8,6 +8,8 @@ app = angular
     'ngAnimate',
     'chieffancypants.loadingBar',
     'restangular',
+    'angulartics',
+    'angulartics.google.analytics'
   ])
   .config ($routeProvider) ->
     $routeProvider

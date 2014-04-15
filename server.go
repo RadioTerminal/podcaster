@@ -64,7 +64,7 @@ func init() {
 	m.Use(martini.Logger())
 	m.Use(render.Renderer())
 	m.Use(martini.Static("public"))
-	m.Map(&db)
+	m.Map(db)
 	// Setup routes
 	gr := martini.NewRouter()
 	gr.Group("/api", func(r martini.Router) {
@@ -99,6 +99,6 @@ func init() {
 }
 
 func main() {
-	worker.Worky(&db)
+	worker.Worky(db)
 	m.Run()
 }

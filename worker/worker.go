@@ -9,7 +9,7 @@ import (
 	"strings"
 )
 
-var db *gorm.DB
+var db gorm.DB
 
 func GenerateWaveform(msg *workers.Msg) {
 	media := models.Media{}
@@ -24,7 +24,7 @@ func GenerateWaveform(msg *workers.Msg) {
 	})
 }
 
-func Worky(dbm *gorm.DB) {
+func Worky(dbm gorm.DB) {
 	workers.Configure(map[string]string{
 		// location of redis instance
 		"server": os.Getenv("REDIS"),

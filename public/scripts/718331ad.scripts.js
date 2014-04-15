@@ -7,7 +7,9 @@
     'mgcrea.ngStrap',
     'ngAnimate',
     'chieffancypants.loadingBar',
-    'restangular'
+    'restangular',
+    'angulartics',
+    'angulartics.google.analytics'
   ]).config([
     '$routeProvider',
     function ($routeProvider) {

@@ -15,7 +15,8 @@
     "angular-motion": "~0.3.2",
     "angular-loading-bar": "~0.3.0",
     "ng-flow": "~2",
-    "angular-social": "~0.1.1"
+    "angular-social": "~0.1.1",
+    "angulartics": "~0.14.15"
   },
   "devDependencies": {
     "angular-mocks": "1.2.15",
