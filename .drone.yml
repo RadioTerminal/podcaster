@@ -1,0 +1,11 @@
+image: mischief/docker-golang
+env:
+  - GOPATH=/var/cache/drone
+script:
+  - go build
+
+deploy:
+  bash:
+    script: 
+      - ls -all
+      - pwd
