@@ -1,9 +1,9 @@
 package routes
 
 import (
-	"../models"
 	"bytes"
 	"fmt"
+	"github.com/dz0ny/podcaster/models"
 	"github.com/go-martini/martini"
 	"github.com/jinzhu/gorm"
 	"log"

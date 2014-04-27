@@ -1,7 +1,7 @@
 package routes
 
 import (
-	"../models"
+	"github.com/dz0ny/podcaster/models"
 	"github.com/jinzhu/gorm"
 	"github.com/martini-contrib/render"
 	"net/http"

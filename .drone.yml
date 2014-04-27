@@ -1,7 +1,13 @@
-image: mischief/docker-golang
-env:
-  - GOPATH=/var/cache/drone
+image: newsdev/go:1.2
 script:
+  - apt-get install -y software-properties-common
+  - apt-add-repository ppa:andrewrk/libgroove -y
+  - apt-get update -y --force-yes
+  - apt-get install libgroove-dev libgrooveplayer-dev libgrooveloudness-dev libgroovefingerprinter-dev  -y --force-yes
+  - export GOPATH=$(pwd)
+  - mkdir bin
+  - export GOBIN=$(pwd)/bin
+  - go get
   - go build
 
 deploy:

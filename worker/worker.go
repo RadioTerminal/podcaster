@@ -1,9 +1,9 @@
 package worker
 
 import (
-	"../models"
-	"../utils"
 	"fmt"
+	"github.com/dz0ny/podcaster/models"
+	"github.com/dz0ny/podcaster/utils"
 	"github.com/jinzhu/gorm"
 	"github.com/jrallison/go-workers"
 	"os"

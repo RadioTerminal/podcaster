@@ -1,11 +1,11 @@
 package main
 
 import (
-	"./models"
-	"./routes"
-	"./utils"
-	"./worker"
 	"fmt"
+	"github.com/dz0ny/podcaster/models"
+	"github.com/dz0ny/podcaster/routes"
+	"github.com/dz0ny/podcaster/utils"
+	"github.com/dz0ny/podcaster/worker"
 	"github.com/go-martini/martini"
 	"github.com/jinzhu/gorm"
 	"github.com/joho/godotenv"
