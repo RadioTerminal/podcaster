@@ -7,12 +7,12 @@
   <div class="jumbotron" ng-show="groups" ng-repeat='item in groups'>
     <div class="row">
       <div class="col-md-3">
-        <a href="#/podcast/{{item.slug}}">
+        <a href="#!/podcast/{{item.slug}}">
           <img ng-src="{{item.picture}}" class="img-rounded img-responsive">
         </a>
       </div>
       <div class="col-md-9">
-        <h2><a href="#/podcast/{{item.slug}}">{{item.name}}</a> <small>{{item.description}}</small></h2>
+        <h2><a href="#!/podcast/{{item.slug}}">{{item.name}}</a> <small>{{item.description}}</small></h2>
         <cite>by <a href="mailto:{{item.email}}">{{item.author}}</a></cite>
         <p>{{item.text}}</p>
         <p>

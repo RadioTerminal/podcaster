@@ -11,7 +11,8 @@ app = angular
     'angulartics',
     'angulartics.google.analytics'
   ])
-  .config ($routeProvider) ->
+  .config ($routeProvider,$locationProvider) ->
+    $locationProvider.hashPrefix('!')
     $routeProvider
       .when '/',
         templateUrl: 'views/main.html'
@@ -31,12 +32,6 @@ app = angular
         resolve:
           groups: (Restangular)->
               Restangular.all('groups').getList()
-      .when '/media/:mediaId',
-        templateUrl: 'views/mediaone.html'
-        controller: 'MediaoneCtrl'
-        resolve:
-          data: ($route, Restangular)->
-              Restangular.one('media', $route.current.params.mediaId).get()
       .when '/podcast/:slug',
         templateUrl: 'views/podcastone.html'
         controller: 'PodcastoneCtrl'
@@ -45,6 +40,12 @@ app = angular
               Restangular.one('group', $route.current.params.slug).get()
           media: ($route, Restangular)->
               Restangular.one('group', $route.current.params.slug).one("media").get()
+      .when '/media/:media_slug',
+        templateUrl: 'views/podcastsingle.html'
+        controller: 'PodcastsingleCtrl'
+        resolve:
+          media: ($route, Restangular)->
+              Restangular.one("media", $route.current.params.media_slug).get()
       .otherwise
         redirectTo: '/'
 

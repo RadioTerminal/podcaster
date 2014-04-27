@@ -1,0 +1,31 @@
+<div class="row">
+  <h1><a href="#!/media/{{media.slug}}">{{media.name}}</a></h1>
+  <div class="jumbotron">
+      <div class="row">
+        <div class="col-md-2">
+            <a href="#!/media/{{media.slug}}">
+              <img ng-src="{{media.cover_url}}" class="img-rounded img-responsive">
+            </a>
+        </div>
+        <div class="col-md-4">
+            <div waveformplayer item="media" source="/api/media/play/{{media.id}}"/>
+            <div class="form-group player-controls">
+              <a class="btn btn-primary btn-xs" href="/api/media/play/{{media.id}}" analytics-on="click" analytics-event="Download" download="podcast-{{media.slug}}.mp3" target="_blank"><span class="glyphicon glyphicon-download"></span> Download</a>&nbsp;<a class="btn btn-primary btn-xs" href="/api/media/play/{{media.id}}" analytics-on="click" analytics-event="Embed" target="_blank"><span class="glyphicon glyphicon-share"></span> Embed</a>
+            </div>
+        </div>
+        <div class="col-md-6">
+          <h2> <small><a href="#!/podcast/{{podcast.slug}}">{{podcast.name}}</a></small></h2>
+          <div class="justify" ng-bind-html="media.text"></div>
+          <cite>by {{media.author}}</cite>
+        </div>
+      </div>
+  </div>
+  <div class="row">
+      <div disqus class="col-12 col-sm-12 col-lg-12" disqus-shortname="podcasti-radioterminal"
+              disqus-identifier="_media_{{ media.id }}"
+              disqus-url="{{media.slug}}"
+              disqus-title="{{ media.name }}"
+              >
+       </disqus>
+  </div>
+</div>

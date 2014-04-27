@@ -64,10 +64,10 @@ module.exports = function (grunt) {
       proxies: [
         {
           context: '/api',
-          host: 'localhost',
-          port: 3000,
+          host: 'podcasti.radioterminal.si',
+          port: 80,
           https: false,
-          changeOrigin: false
+          changeOrigin: true
         }
       ],
       options: {

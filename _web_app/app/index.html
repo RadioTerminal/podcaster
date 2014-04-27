@@ -31,11 +31,11 @@
             <a class="navbar-brand" href="#">Podcaster</a>
           </div>
           <ul class="nav navbar-nav">
-            <li data-match-route="^/$"><a href="#/">Home</a></li>
-            <li data-match-route="/podcast.*"><a href="#/podcasts">Podcasts</a></li>
-            <li data-match-route="/media.*"><a href="#/media">Media</a></li>
-            <li ng-show="$root.auth" data-match-route="/settings"><a href="#/settings">Settings</a></li>
-            <li ng-hide="$root.auth" data-match-route="/login"><a href="#/login">Login</a></li>
+            <li data-match-route="^/$"><a href="#!/">Home</a></li>
+            <li data-match-route="/podcast.*"><a href="#!/podcasts">Podcasts</a></li>
+            <li data-match-route="/media.*"><a href="#!/media">Media</a></li>
+            <li ng-show="$root.auth" data-match-route="/settings"><a href="#!/settings">Settings</a></li>
+            <li ng-hide="$root.auth" data-match-route="/login"><a href="#!/login">Login</a></li>
           </ul>
         </div>
         <div class="container" ng-view=""></div>
@@ -82,6 +82,8 @@
     <script src="scripts/directives/bootswatch.js"></script>
     <script src="scripts/directives/waveformplayer.js"></script>
     <script src="scripts/directives/mediaplayer.js"></script>
+    <script src="scripts/directives/disqus.js"></script>
+    <script src="scripts/controllers/podcastsingle.js"></script>
     <!-- endbuild -->
     <script>
       (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){

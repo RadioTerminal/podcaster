@@ -70,3 +70,6 @@ header {
 .justify {
   text-align: justify;
 }
+.row h3{
+  min-height: 52px;
+}

@@ -1,5 +1,5 @@
-<h3>{{item.name}}</h3>
-<waveformplayer item="item" source="/api/media/play/{{item.id}}"/>
+<h3><a href="#!/media/{{item.slug}}">{{item.name}}</a></h3>
+<div waveformplayer item="item" source="/api/media/play/{{item.id}}"/>
 <div class="form-group player-controls">
 	<a class="btn btn-primary btn-xs" href="/api/media/play/{{item.id}}" analytics-on="click" analytics-event="Download" download="podcast-{{item.slug}}.mp3" target="_blank"><span class="glyphicon glyphicon-download"></span> Download</a>&nbsp;<a class="btn btn-primary btn-xs" href="/api/media/play/{{item.id}}" analytics-on="click" analytics-event="Embed" target="_blank"><span class="glyphicon glyphicon-share"></span> Embed</a>
 </div>

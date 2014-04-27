@@ -12,7 +12,9 @@
     'angulartics.google.analytics'
   ]).config([
     '$routeProvider',
-    function ($routeProvider) {
+    '$locationProvider',
+    function ($routeProvider, $locationProvider) {
+      $locationProvider.hashPrefix('!');
       return $routeProvider.when('/', {
         templateUrl: 'views/main.html',
         controller: 'MainCtrl',
@@ -26,7 +28,7 @@
         controller: 'MediaCtrl',
         resolve: {
           media: function (Restangular) {
-            return Restangular.all('media').getList();
+            return Restangular.all('latest').getList();
           }
         }
       }).when('/podcasts', {
@@ -35,14 +37,6 @@
         resolve: {
           groups: function (Restangular) {
             return Restangular.all('groups').getList();
-          }
-        }
-      }).when('/media/:mediaId', {
-        templateUrl: 'views/mediaone.html',
-        controller: 'MediaoneCtrl',
-        resolve: {
-          data: function ($route, Restangular) {
-            return Restangular.one('media', $route.current.params.mediaId).get();
           }
         }
       }).when('/podcast/:slug', {
@@ -54,6 +48,14 @@
           },
           media: function ($route, Restangular) {
             return Restangular.one('group', $route.current.params.slug).one('media').get();
+          }
+        }
+      }).when('/media/:media_slug', {
+        templateUrl: 'views/podcastsingle.html',
+        controller: 'PodcastsingleCtrl',
+        resolve: {
+          media: function ($route, Restangular) {
+            return Restangular.one('media', $route.current.params.media_slug).get();
           }
         }
       }).otherwise({ redirectTo: '/' });
@@ -179,13 +181,13 @@
   'use strict';
   angular.module('podcasterApp').directive('waveformplayer', function () {
     return {
-      restrict: 'E',
+      restrict: 'AE',
       scope: { item: '=' },
       templateUrl: '/views/player.html',
       link: function (scope, element, attr) {
         var canvas, clear, context, createCanvas, data, gradient, height, innerColor, interpolateArray, linearInterpolate, outerColor, patchCanvasForIE, redraw, toHHMMSS, width, _this = this;
         scope.audio = new Audio();
-        scope.preload = 'metadata';
+        scope.audio.preload = 'metadata';
         scope.now = 0;
         scope.duration = 0;
         scope.cursor = 0;
@@ -203,12 +205,12 @@
             };
           }
         };
-        createCanvas = function (container, width, height) {
+        createCanvas = function (container) {
           var canvas;
           canvas = document.createElement('canvas');
           container[0].appendChild(canvas);
-          canvas.width = width || 370;
-          canvas.height = height || 80;
+          canvas.width = container.parent().clientWidth || 370;
+          canvas.height = canvas.width / Math.PI;
           return canvas;
         };
         toHHMMSS = function (times) {
@@ -283,7 +285,7 @@
         };
         scope.playpause = function () {
           if (scope.audio.paused) {
-            if (scope.audio.src === '/api/media/head/' + scope.item.id) {
+            if (scope.audio.src !== '/api/media/play/' + scope.item.id) {
               scope.audio.src = '/api/media/play/' + scope.item.id;
             }
             return scope.audio.play();
@@ -298,7 +300,7 @@
             return redraw();
           });
         }, false);
-        canvas = createCanvas(element, element.parent().clientWidth, element.clientHeight);
+        canvas = createCanvas(element);
         patchCanvasForIE(canvas);
         context = canvas.getContext('2d');
         width = parseInt(context.canvas.width, 10);
@@ -359,6 +361,7 @@
           data = interpolateArray(item.wave.split(','), width);
           scope.item = item;
           scope.audio.src = '/api/media/head/' + item.id;
+          window['audio_' + item.id] = scope.audio;
           return redraw();
         });
         return scope.$on('$destroy', function () {
@@ -378,16 +381,97 @@
   'use strict';
   angular.module('podcasterApp').directive('mediaplayer', function () {
     return {
-      restrict: 'E',
-      scope: { item: '=' },
+      restrict: 'AE',
+      scope: {
+        item: '=',
+        podcast: '='
+      },
       templateUrl: '/views/mediaone.html',
       link: function (scope, element, attr) {
+        scope.$watch('podcast', function (podcast) {
+          return scope.podcast = podcast;
+        });
         return scope.$watch('item', function (item) {
           return scope.item = item;
         });
       }
     };
   });
-}.call(this));  /*
+}.call(this));
+/*
 //@ sourceMappingURL=mediaplayer.js.map
+*/
+(function () {
+  'use strict';
+  angular.module('podcasterApp').directive('disqus', [
+    '$window',
+    function ($window) {
+      return {
+        restrict: 'AE',
+        scope: {
+          disqus_shortname: '@disqusShortname',
+          disqus_identifier: '@disqusIdentifier',
+          disqus_title: '@disqusTitle',
+          disqus_url: '@disqusUrl',
+          disqus_category_id: '@disqusCategoryId',
+          disqus_disable_mobile: '@disqusDisableMobile',
+          readyToBind: '@'
+        },
+        template: '<div id="disqus_thread"></div><a href="http://disqus.com" class="dsq-brlink">comments powered by <span class="logo-disqus">Disqus</span></a>',
+        link: function (scope) {
+          if (typeof scope.disqus_identifier === 'undefined' || typeof scope.disqus_url === 'undefined') {
+            throw 'Please ensure that the `disqus-identifier` and `disqus-url` attributes are both set.';
+          }
+          return scope.$watch('readyToBind', function (isReady) {
+            var dsq;
+            if (!angular.isDefined(isReady)) {
+              isReady = 'true';
+            }
+            if (scope.$eval(isReady)) {
+              $window.disqus_shortname = scope.disqus_shortname;
+              $window.disqus_identifier = scope.disqus_identifier;
+              $window.disqus_title = scope.disqus_title;
+              $window.disqus_url = scope.disqus_url;
+              $window.disqus_category_id = scope.disqus_category_id;
+              $window.disqus_disable_mobile = scope.disqus_disable_mobile;
+              if (!$window.DISQUS) {
+                dsq = document.createElement('script');
+                dsq.type = 'text/javascript';
+                dsq.async = true;
+                dsq.src = '//' + scope.disqus_shortname + '.disqus.com/embed.js';
+                return (document.getElementsByTagName('head')[0] || document.getElementsByTagName('body')[0]).appendChild(dsq);
+              } else {
+                return $window.DISQUS.reset({
+                  reload: true,
+                  config: function () {
+                    this.page.identifier = scope.disqus_identifier;
+                    this.page.url = scope.disqus_url;
+                    return this.page.title = scope.disqus_title;
+                  }
+                });
+              }
+            }
+          });
+        }
+      };
+    }
+  ]);
+}.call(this));
+/*
+//@ sourceMappingURL=disqus.js.map
+*/
+(function () {
+  'use strict';
+  angular.module('podcasterApp').controller('PodcastsingleCtrl', [
+    '$scope',
+    'media',
+    '$rootScope',
+    function ($scope, media, $rootScope) {
+      $scope.media = media;
+      $rootScope.title = 'Podcaster - ' + media.name;
+      return $rootScope.description = media.text;
+    }
+  ]);
+}.call(this));  /*
+//@ sourceMappingURL=podcastsingle.js.map
 */

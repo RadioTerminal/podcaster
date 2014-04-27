@@ -25142,6 +25142,653 @@
  */
 (function (window, angular, undefined) {
   'use strict';
+  var $resourceMinErr = angular.$$minErr('$resource');
+  // Helper functions and regex to lookup a dotted path on an object
+  // stopping at undefined/null.  The path must be composed of ASCII
+  // identifiers (just like $parse)
+  var MEMBER_NAME_REGEX = /^(\.[a-zA-Z_$][0-9a-zA-Z_$]*)+$/;
+  function isValidDottedPath(path) {
+    return path != null && path !== '' && path !== 'hasOwnProperty' && MEMBER_NAME_REGEX.test('.' + path);
+  }
+  function lookupDottedPath(obj, path) {
+    if (!isValidDottedPath(path)) {
+      throw $resourceMinErr('badmember', 'Dotted member path "@{0}" is invalid.', path);
+    }
+    var keys = path.split('.');
+    for (var i = 0, ii = keys.length; i < ii && obj !== undefined; i++) {
+      var key = keys[i];
+      obj = obj !== null ? obj[key] : undefined;
+    }
+    return obj;
+  }
+  /**
+ * Create a shallow copy of an object and clear other fields from the destination
+ */
+  function shallowClearAndCopy(src, dst) {
+    dst = dst || {};
+    angular.forEach(dst, function (value, key) {
+      delete dst[key];
+    });
+    for (var key in src) {
+      if (src.hasOwnProperty(key) && !(key.charAt(0) === '$' && key.charAt(1) === '$')) {
+        dst[key] = src[key];
+      }
+    }
+    return dst;
+  }
+  /**
+ * @ngdoc module
+ * @name ngResource
+ * @description
+ *
+ * # ngResource
+ *
+ * The `ngResource` module provides interaction support with RESTful services
+ * via the $resource service.
+ *
+ *
+ * <div doc-module-components="ngResource"></div>
+ *
+ * See {@link ngResource.$resource `$resource`} for usage.
+ */
+  /**
+ * @ngdoc service
+ * @name $resource
+ * @requires $http
+ *
+ * @description
+ * A factory which creates a resource object that lets you interact with
+ * [RESTful](http://en.wikipedia.org/wiki/Representational_State_Transfer) server-side data sources.
+ *
+ * The returned resource object has action methods which provide high-level behaviors without
+ * the need to interact with the low level {@link ng.$http $http} service.
+ *
+ * Requires the {@link ngResource `ngResource`} module to be installed.
+ *
+ * @param {string} url A parametrized URL template with parameters prefixed by `:` as in
+ *   `/user/:username`. If you are using a URL with a port number (e.g.
+ *   `http://example.com:8080/api`), it will be respected.
+ *
+ *   If you are using a url with a suffix, just add the suffix, like this:
+ *   `$resource('http://example.com/resource.json')` or `$resource('http://example.com/:id.json')`
+ *   or even `$resource('http://example.com/resource/:resource_id.:format')`
+ *   If the parameter before the suffix is empty, :resource_id in this case, then the `/.` will be
+ *   collapsed down to a single `.`.  If you need this sequence to appear and not collapse then you
+ *   can escape it with `/\.`.
+ *
+ * @param {Object=} paramDefaults Default values for `url` parameters. These can be overridden in
+ *   `actions` methods. If any of the parameter value is a function, it will be executed every time
+ *   when a param value needs to be obtained for a request (unless the param was overridden).
+ *
+ *   Each key value in the parameter object is first bound to url template if present and then any
+ *   excess keys are appended to the url search query after the `?`.
+ *
+ *   Given a template `/path/:verb` and parameter `{verb:'greet', salutation:'Hello'}` results in
+ *   URL `/path/greet?salutation=Hello`.
+ *
+ *   If the parameter value is prefixed with `@` then the value of that parameter is extracted from
+ *   the data object (useful for non-GET operations).
+ *
+ * @param {Object.<Object>=} actions Hash with declaration of custom action that should extend
+ *   the default set of resource actions. The declaration should be created in the format of {@link
+ *   ng.$http#usage_parameters $http.config}:
+ *
+ *       {action1: {method:?, params:?, isArray:?, headers:?, ...},
+ *        action2: {method:?, params:?, isArray:?, headers:?, ...},
+ *        ...}
+ *
+ *   Where:
+ *
+ *   - **`action`** – {string} – The name of action. This name becomes the name of the method on
+ *     your resource object.
+ *   - **`method`** – {string} – HTTP request method. Valid methods are: `GET`, `POST`, `PUT`,
+ *     `DELETE`, and `JSONP`.
+ *   - **`params`** – {Object=} – Optional set of pre-bound parameters for this action. If any of
+ *     the parameter value is a function, it will be executed every time when a param value needs to
+ *     be obtained for a request (unless the param was overridden).
+ *   - **`url`** – {string} – action specific `url` override. The url templating is supported just
+ *     like for the resource-level urls.
+ *   - **`isArray`** – {boolean=} – If true then the returned object for this action is an array,
+ *     see `returns` section.
+ *   - **`transformRequest`** –
+ *     `{function(data, headersGetter)|Array.<function(data, headersGetter)>}` –
+ *     transform function or an array of such functions. The transform function takes the http
+ *     request body and headers and returns its transformed (typically serialized) version.
+ *   - **`transformResponse`** –
+ *     `{function(data, headersGetter)|Array.<function(data, headersGetter)>}` –
+ *     transform function or an array of such functions. The transform function takes the http
+ *     response body and headers and returns its transformed (typically deserialized) version.
+ *   - **`cache`** – `{boolean|Cache}` – If true, a default $http cache will be used to cache the
+ *     GET request, otherwise if a cache instance built with
+ *     {@link ng.$cacheFactory $cacheFactory}, this cache will be used for
+ *     caching.
+ *   - **`timeout`** – `{number|Promise}` – timeout in milliseconds, or {@link ng.$q promise} that
+ *     should abort the request when resolved.
+ *   - **`withCredentials`** - `{boolean}` - whether to set the `withCredentials` flag on the
+ *     XHR object. See
+ *     [requests with credentials](https://developer.mozilla.org/en/http_access_control#section_5)
+ *     for more information.
+ *   - **`responseType`** - `{string}` - see
+ *     [requestType](https://developer.mozilla.org/en-US/docs/DOM/XMLHttpRequest#responseType).
+ *   - **`interceptor`** - `{Object=}` - The interceptor object has two optional methods -
+ *     `response` and `responseError`. Both `response` and `responseError` interceptors get called
+ *     with `http response` object. See {@link ng.$http $http interceptors}.
+ *
+ * @returns {Object} A resource "class" object with methods for the default set of resource actions
+ *   optionally extended with custom `actions`. The default set contains these actions:
+ *   ```js
+ *   { 'get':    {method:'GET'},
+ *     'save':   {method:'POST'},
+ *     'query':  {method:'GET', isArray:true},
+ *     'remove': {method:'DELETE'},
+ *     'delete': {method:'DELETE'} };
+ *   ```
+ *
+ *   Calling these methods invoke an {@link ng.$http} with the specified http method,
+ *   destination and parameters. When the data is returned from the server then the object is an
+ *   instance of the resource class. The actions `save`, `remove` and `delete` are available on it
+ *   as  methods with the `$` prefix. This allows you to easily perform CRUD operations (create,
+ *   read, update, delete) on server-side data like this:
+ *   ```js
+ *   var User = $resource('/user/:userId', {userId:'@id'});
+ *   var user = User.get({userId:123}, function() {
+ *     user.abc = true;
+ *     user.$save();
+ *   });
+ *   ```
+ *
+ *   It is important to realize that invoking a $resource object method immediately returns an
+ *   empty reference (object or array depending on `isArray`). Once the data is returned from the
+ *   server the existing reference is populated with the actual data. This is a useful trick since
+ *   usually the resource is assigned to a model which is then rendered by the view. Having an empty
+ *   object results in no rendering, once the data arrives from the server then the object is
+ *   populated with the data and the view automatically re-renders itself showing the new data. This
+ *   means that in most cases one never has to write a callback function for the action methods.
+ *
+ *   The action methods on the class object or instance object can be invoked with the following
+ *   parameters:
+ *
+ *   - HTTP GET "class" actions: `Resource.action([parameters], [success], [error])`
+ *   - non-GET "class" actions: `Resource.action([parameters], postData, [success], [error])`
+ *   - non-GET instance actions:  `instance.$action([parameters], [success], [error])`
+ *
+ *   Success callback is called with (value, responseHeaders) arguments. Error callback is called
+ *   with (httpResponse) argument.
+ *
+ *   Class actions return empty instance (with additional properties below).
+ *   Instance actions return promise of the action.
+ *
+ *   The Resource instances and collection have these additional properties:
+ *
+ *   - `$promise`: the {@link ng.$q promise} of the original server interaction that created this
+ *     instance or collection.
+ *
+ *     On success, the promise is resolved with the same resource instance or collection object,
+ *     updated with data from server. This makes it easy to use in
+ *     {@link ngRoute.$routeProvider resolve section of $routeProvider.when()} to defer view
+ *     rendering until the resource(s) are loaded.
+ *
+ *     On failure, the promise is resolved with the {@link ng.$http http response} object, without
+ *     the `resource` property.
+ *
+ *   - `$resolved`: `true` after first server interaction is completed (either with success or
+ *      rejection), `false` before that. Knowing if the Resource has been resolved is useful in
+ *      data-binding.
+ *
+ * @example
+ *
+ * # Credit card resource
+ *
+ * ```js
+     // Define CreditCard class
+     var CreditCard = $resource('/user/:userId/card/:cardId',
+      {userId:123, cardId:'@id'}, {
+       charge: {method:'POST', params:{charge:true}}
+      });
+
+     // We can retrieve a collection from the server
+     var cards = CreditCard.query(function() {
+       // GET: /user/123/card
+       // server returns: [ {id:456, number:'1234', name:'Smith'} ];
+
+       var card = cards[0];
+       // each item is an instance of CreditCard
+       expect(card instanceof CreditCard).toEqual(true);
+       card.name = "J. Smith";
+       // non GET methods are mapped onto the instances
+       card.$save();
+       // POST: /user/123/card/456 {id:456, number:'1234', name:'J. Smith'}
+       // server returns: {id:456, number:'1234', name: 'J. Smith'};
+
+       // our custom method is mapped as well.
+       card.$charge({amount:9.99});
+       // POST: /user/123/card/456?amount=9.99&charge=true {id:456, number:'1234', name:'J. Smith'}
+     });
+
+     // we can create an instance as well
+     var newCard = new CreditCard({number:'0123'});
+     newCard.name = "Mike Smith";
+     newCard.$save();
+     // POST: /user/123/card {number:'0123', name:'Mike Smith'}
+     // server returns: {id:789, number:'0123', name: 'Mike Smith'};
+     expect(newCard.id).toEqual(789);
+ * ```
+ *
+ * The object returned from this function execution is a resource "class" which has "static" method
+ * for each action in the definition.
+ *
+ * Calling these methods invoke `$http` on the `url` template with the given `method`, `params` and
+ * `headers`.
+ * When the data is returned from the server then the object is an instance of the resource type and
+ * all of the non-GET methods are available with `$` prefix. This allows you to easily support CRUD
+ * operations (create, read, update, delete) on server-side data.
+
+   ```js
+     var User = $resource('/user/:userId', {userId:'@id'});
+     User.get({userId:123}, function(user) {
+       user.abc = true;
+       user.$save();
+     });
+   ```
+ *
+ * It's worth noting that the success callback for `get`, `query` and other methods gets passed
+ * in the response that came from the server as well as $http header getter function, so one
+ * could rewrite the above example and get access to http headers as:
+ *
+   ```js
+     var User = $resource('/user/:userId', {userId:'@id'});
+     User.get({userId:123}, function(u, getResponseHeaders){
+       u.abc = true;
+       u.$save(function(u, putResponseHeaders) {
+         //u => saved user object
+         //putResponseHeaders => $http header getter
+       });
+     });
+   ```
+ *
+ * You can also access the raw `$http` promise via the `$promise` property on the object returned
+ *
+   ```
+     var User = $resource('/user/:userId', {userId:'@id'});
+     User.get({userId:123})
+         .$promise.then(function(user) {
+           $scope.user = user;
+         });
+   ```
+
+ * # Creating a custom 'PUT' request
+ * In this example we create a custom method on our resource to make a PUT request
+ * ```js
+ *		var app = angular.module('app', ['ngResource', 'ngRoute']);
+ *
+ *		// Some APIs expect a PUT request in the format URL/object/ID
+ *		// Here we are creating an 'update' method
+ *		app.factory('Notes', ['$resource', function($resource) {
+ *    return $resource('/notes/:id', null,
+ *        {
+ *            'update': { method:'PUT' }
+ *        });
+ *		}]);
+ *
+ *		// In our controller we get the ID from the URL using ngRoute and $routeParams
+ *		// We pass in $routeParams and our Notes factory along with $scope
+ *		app.controller('NotesCtrl', ['$scope', '$routeParams', 'Notes',
+                                      function($scope, $routeParams, Notes) {
+ *    // First get a note object from the factory
+ *    var note = Notes.get({ id:$routeParams.id });
+ *    $id = note.id;
+ *
+ *    // Now call update passing in the ID first then the object you are updating
+ *    Notes.update({ id:$id }, note);
+ *
+ *    // This will PUT /notes/ID with the note object in the request payload
+ *		}]);
+ * ```
+ */
+  angular.module('ngResource', ['ng']).factory('$resource', [
+    '$http',
+    '$q',
+    function ($http, $q) {
+      var DEFAULT_ACTIONS = {
+          'get': { method: 'GET' },
+          'save': { method: 'POST' },
+          'query': {
+            method: 'GET',
+            isArray: true
+          },
+          'remove': { method: 'DELETE' },
+          'delete': { method: 'DELETE' }
+        };
+      var noop = angular.noop, forEach = angular.forEach, extend = angular.extend, copy = angular.copy, isFunction = angular.isFunction;
+      /**
+     * We need our custom method because encodeURIComponent is too aggressive and doesn't follow
+     * http://www.ietf.org/rfc/rfc3986.txt with regards to the character set (pchar) allowed in path
+     * segments:
+     *    segment       = *pchar
+     *    pchar         = unreserved / pct-encoded / sub-delims / ":" / "@"
+     *    pct-encoded   = "%" HEXDIG HEXDIG
+     *    unreserved    = ALPHA / DIGIT / "-" / "." / "_" / "~"
+     *    sub-delims    = "!" / "$" / "&" / "'" / "(" / ")"
+     *                     / "*" / "+" / "," / ";" / "="
+     */
+      function encodeUriSegment(val) {
+        return encodeUriQuery(val, true).replace(/%26/gi, '&').replace(/%3D/gi, '=').replace(/%2B/gi, '+');
+      }
+      /**
+     * This method is intended for encoding *key* or *value* parts of query component. We need a
+     * custom method because encodeURIComponent is too aggressive and encodes stuff that doesn't
+     * have to be encoded per http://tools.ietf.org/html/rfc3986:
+     *    query       = *( pchar / "/" / "?" )
+     *    pchar         = unreserved / pct-encoded / sub-delims / ":" / "@"
+     *    unreserved    = ALPHA / DIGIT / "-" / "." / "_" / "~"
+     *    pct-encoded   = "%" HEXDIG HEXDIG
+     *    sub-delims    = "!" / "$" / "&" / "'" / "(" / ")"
+     *                     / "*" / "+" / "," / ";" / "="
+     */
+      function encodeUriQuery(val, pctEncodeSpaces) {
+        return encodeURIComponent(val).replace(/%40/gi, '@').replace(/%3A/gi, ':').replace(/%24/g, '$').replace(/%2C/gi, ',').replace(/%20/g, pctEncodeSpaces ? '%20' : '+');
+      }
+      function Route(template, defaults) {
+        this.template = template;
+        this.defaults = defaults || {};
+        this.urlParams = {};
+      }
+      Route.prototype = {
+        setUrlParams: function (config, params, actionUrl) {
+          var self = this, url = actionUrl || self.template, val, encodedVal;
+          var urlParams = self.urlParams = {};
+          forEach(url.split(/\W/), function (param) {
+            if (param === 'hasOwnProperty') {
+              throw $resourceMinErr('badname', 'hasOwnProperty is not a valid parameter name.');
+            }
+            if (!new RegExp('^\\d+$').test(param) && param && new RegExp('(^|[^\\\\]):' + param + '(\\W|$)').test(url)) {
+              urlParams[param] = true;
+            }
+          });
+          url = url.replace(/\\:/g, ':');
+          params = params || {};
+          forEach(self.urlParams, function (_, urlParam) {
+            val = params.hasOwnProperty(urlParam) ? params[urlParam] : self.defaults[urlParam];
+            if (angular.isDefined(val) && val !== null) {
+              encodedVal = encodeUriSegment(val);
+              url = url.replace(new RegExp(':' + urlParam + '(\\W|$)', 'g'), function (match, p1) {
+                return encodedVal + p1;
+              });
+            } else {
+              url = url.replace(new RegExp('(/?):' + urlParam + '(\\W|$)', 'g'), function (match, leadingSlashes, tail) {
+                if (tail.charAt(0) == '/') {
+                  return tail;
+                } else {
+                  return leadingSlashes + tail;
+                }
+              });
+            }
+          });
+          // strip trailing slashes and set the url
+          url = url.replace(/\/+$/, '') || '/';
+          // then replace collapse `/.` if found in the last URL path segment before the query
+          // E.g. `http://url.com/id./format?q=x` becomes `http://url.com/id.format?q=x`
+          url = url.replace(/\/\.(?=\w+($|\?))/, '.');
+          // replace escaped `/\.` with `/.`
+          config.url = url.replace(/\/\\\./, '/.');
+          // set params - delegate param encoding to $http
+          forEach(params, function (value, key) {
+            if (!self.urlParams[key]) {
+              config.params = config.params || {};
+              config.params[key] = value;
+            }
+          });
+        }
+      };
+      function resourceFactory(url, paramDefaults, actions) {
+        var route = new Route(url);
+        actions = extend({}, DEFAULT_ACTIONS, actions);
+        function extractParams(data, actionParams) {
+          var ids = {};
+          actionParams = extend({}, paramDefaults, actionParams);
+          forEach(actionParams, function (value, key) {
+            if (isFunction(value)) {
+              value = value();
+            }
+            ids[key] = value && value.charAt && value.charAt(0) == '@' ? lookupDottedPath(data, value.substr(1)) : value;
+          });
+          return ids;
+        }
+        function defaultResponseInterceptor(response) {
+          return response.resource;
+        }
+        function Resource(value) {
+          shallowClearAndCopy(value || {}, this);
+        }
+        forEach(actions, function (action, name) {
+          var hasBody = /^(POST|PUT|PATCH)$/i.test(action.method);
+          Resource[name] = function (a1, a2, a3, a4) {
+            var params = {}, data, success, error;
+            /* jshint -W086 */
+            /* (purposefully fall through case statements) */
+            switch (arguments.length) {
+            case 4:
+              error = a4;
+              success = a3;
+            //fallthrough
+            case 3:
+            case 2:
+              if (isFunction(a2)) {
+                if (isFunction(a1)) {
+                  success = a1;
+                  error = a2;
+                  break;
+                }
+                success = a2;
+                error = a3;  //fallthrough
+              } else {
+                params = a1;
+                data = a2;
+                success = a3;
+                break;
+              }
+            case 1:
+              if (isFunction(a1))
+                success = a1;
+              else if (hasBody)
+                data = a1;
+              else
+                params = a1;
+              break;
+            case 0:
+              break;
+            default:
+              throw $resourceMinErr('badargs', 'Expected up to 4 arguments [params, data, success, error], got {0} arguments', arguments.length);
+            }
+            /* jshint +W086 */
+            /* (purposefully fall through case statements) */
+            var isInstanceCall = this instanceof Resource;
+            var value = isInstanceCall ? data : action.isArray ? [] : new Resource(data);
+            var httpConfig = {};
+            var responseInterceptor = action.interceptor && action.interceptor.response || defaultResponseInterceptor;
+            var responseErrorInterceptor = action.interceptor && action.interceptor.responseError || undefined;
+            forEach(action, function (value, key) {
+              if (key != 'params' && key != 'isArray' && key != 'interceptor') {
+                httpConfig[key] = copy(value);
+              }
+            });
+            if (hasBody)
+              httpConfig.data = data;
+            route.setUrlParams(httpConfig, extend({}, extractParams(data, action.params || {}), params), action.url);
+            var promise = $http(httpConfig).then(function (response) {
+                var data = response.data, promise = value.$promise;
+                if (data) {
+                  // Need to convert action.isArray to boolean in case it is undefined
+                  // jshint -W018
+                  if (angular.isArray(data) !== !!action.isArray) {
+                    throw $resourceMinErr('badcfg', 'Error in resource configuration. Expected ' + 'response to contain an {0} but got an {1}', action.isArray ? 'array' : 'object', angular.isArray(data) ? 'array' : 'object');
+                  }
+                  // jshint +W018
+                  if (action.isArray) {
+                    value.length = 0;
+                    forEach(data, function (item) {
+                      value.push(new Resource(item));
+                    });
+                  } else {
+                    shallowClearAndCopy(data, value);
+                    value.$promise = promise;
+                  }
+                }
+                value.$resolved = true;
+                response.resource = value;
+                return response;
+              }, function (response) {
+                value.$resolved = true;
+                (error || noop)(response);
+                return $q.reject(response);
+              });
+            promise = promise.then(function (response) {
+              var value = responseInterceptor(response);
+              (success || noop)(value, response.headers);
+              return value;
+            }, responseErrorInterceptor);
+            if (!isInstanceCall) {
+              // we are creating instance / collection
+              // - set the initial promise
+              // - return the instance / collection
+              value.$promise = promise;
+              value.$resolved = false;
+              return value;
+            }
+            // instance call
+            return promise;
+          };
+          Resource.prototype['$' + name] = function (params, success, error) {
+            if (isFunction(params)) {
+              error = success;
+              success = params;
+              params = {};
+            }
+            var result = Resource[name].call(this, params, this, success, error);
+            return result.$promise || result;
+          };
+        });
+        Resource.bind = function (additionalParamDefaults) {
+          return resourceFactory(url, extend({}, paramDefaults, additionalParamDefaults), actions);
+        };
+        return Resource;
+      }
+      return resourceFactory;
+    }
+  ]);
+}(window, window.angular));
+/**
+ * @license AngularJS v1.2.15
+ * (c) 2010-2014 Google, Inc. http://angularjs.org
+ * License: MIT
+ */
+(function (window, angular, undefined) {
+  'use strict';
+  /**
+ * @ngdoc module
+ * @name ngCookies
+ * @description
+ *
+ * # ngCookies
+ *
+ * The `ngCookies` module provides a convenient wrapper for reading and writing browser cookies.
+ *
+ *
+ * <div doc-module-components="ngCookies"></div>
+ *
+ * See {@link ngCookies.$cookies `$cookies`} and
+ * {@link ngCookies.$cookieStore `$cookieStore`} for usage.
+ */
+  angular.module('ngCookies', ['ng']).factory('$cookies', [
+    '$rootScope',
+    '$browser',
+    function ($rootScope, $browser) {
+      var cookies = {}, lastCookies = {}, lastBrowserCookies, runEval = false, copy = angular.copy, isUndefined = angular.isUndefined;
+      //creates a poller fn that copies all cookies from the $browser to service & inits the service
+      $browser.addPollFn(function () {
+        var currentCookies = $browser.cookies();
+        if (lastBrowserCookies != currentCookies) {
+          //relies on browser.cookies() impl
+          lastBrowserCookies = currentCookies;
+          copy(currentCookies, lastCookies);
+          copy(currentCookies, cookies);
+          if (runEval)
+            $rootScope.$apply();
+        }
+      })();
+      runEval = true;
+      //at the end of each eval, push cookies
+      //TODO: this should happen before the "delayed" watches fire, because if some cookies are not
+      //      strings or browser refuses to store some cookies, we update the model in the push fn.
+      $rootScope.$watch(push);
+      return cookies;
+      /**
+       * Pushes all the cookies from the service to the browser and verifies if all cookies were
+       * stored.
+       */
+      function push() {
+        var name, value, browserCookies, updated;
+        //delete any cookies deleted in $cookies
+        for (name in lastCookies) {
+          if (isUndefined(cookies[name])) {
+            $browser.cookies(name, undefined);
+          }
+        }
+        //update all cookies updated in $cookies
+        for (name in cookies) {
+          value = cookies[name];
+          if (!angular.isString(value)) {
+            value = '' + value;
+            cookies[name] = value;
+          }
+          if (value !== lastCookies[name]) {
+            $browser.cookies(name, value);
+            updated = true;
+          }
+        }
+        //verify what was actually stored
+        if (updated) {
+          updated = false;
+          browserCookies = $browser.cookies();
+          for (name in cookies) {
+            if (cookies[name] !== browserCookies[name]) {
+              //delete or reset all cookies that the browser dropped from $cookies
+              if (isUndefined(browserCookies[name])) {
+                delete cookies[name];
+              } else {
+                cookies[name] = browserCookies[name];
+              }
+              updated = true;
+            }
+          }
+        }
+      }
+    }
+  ]).factory('$cookieStore', [
+    '$cookies',
+    function ($cookies) {
+      return {
+        get: function (key) {
+          var value = $cookies[key];
+          return value ? angular.fromJson(value) : value;
+        },
+        put: function (key, value) {
+          $cookies[key] = angular.toJson(value);
+        },
+        remove: function (key) {
+          delete $cookies[key];
+        }
+      };
+    }
+  ]);
+}(window, window.angular));
+/**
+ * @license AngularJS v1.2.15
+ * (c) 2010-2014 Google, Inc. http://angularjs.org
+ * License: MIT
+ */
+(function (window, angular, undefined) {
+  'use strict';
   var $sanitizeMinErr = angular.$$minErr('$sanitize');
   /**
  * @ngdoc module
@@ -34113,6 +34760,1453 @@ mod.directive('infiniteScroll', [
     ];
   });
 }());
+/*!
+ * Bootstrap v3.1.1 (http://getbootstrap.com)
+ * Copyright 2011-2014 Twitter, Inc.
+ * Licensed under MIT (https://github.com/twbs/bootstrap/blob/master/LICENSE)
+ */
+if (typeof jQuery === 'undefined') {
+  throw new Error('Bootstrap\'s JavaScript requires jQuery');
+}
+/* ========================================================================
+ * Bootstrap: transition.js v3.1.1
+ * http://getbootstrap.com/javascript/#transitions
+ * ========================================================================
+ * Copyright 2011-2014 Twitter, Inc.
+ * Licensed under MIT (https://github.com/twbs/bootstrap/blob/master/LICENSE)
+ * ======================================================================== */
++function ($) {
+  'use strict';
+  // CSS TRANSITION SUPPORT (Shoutout: http://www.modernizr.com/)
+  // ============================================================
+  function transitionEnd() {
+    var el = document.createElement('bootstrap');
+    var transEndEventNames = {
+        'WebkitTransition': 'webkitTransitionEnd',
+        'MozTransition': 'transitionend',
+        'OTransition': 'oTransitionEnd otransitionend',
+        'transition': 'transitionend'
+      };
+    for (var name in transEndEventNames) {
+      if (el.style[name] !== undefined) {
+        return { end: transEndEventNames[name] };
+      }
+    }
+    return false;
+  }
+  // http://blog.alexmaccaw.com/css-transitions
+  $.fn.emulateTransitionEnd = function (duration) {
+    var called = false, $el = this;
+    $(this).one($.support.transition.end, function () {
+      called = true;
+    });
+    var callback = function () {
+      if (!called)
+        $($el).trigger($.support.transition.end);
+    };
+    setTimeout(callback, duration);
+    return this;
+  };
+  $(function () {
+    $.support.transition = transitionEnd();
+  });
+}(jQuery);
+/* ========================================================================
+ * Bootstrap: alert.js v3.1.1
+ * http://getbootstrap.com/javascript/#alerts
+ * ========================================================================
+ * Copyright 2011-2014 Twitter, Inc.
+ * Licensed under MIT (https://github.com/twbs/bootstrap/blob/master/LICENSE)
+ * ======================================================================== */
++function ($) {
+  'use strict';
+  // ALERT CLASS DEFINITION
+  // ======================
+  var dismiss = '[data-dismiss="alert"]';
+  var Alert = function (el) {
+    $(el).on('click', dismiss, this.close);
+  };
+  Alert.prototype.close = function (e) {
+    var $this = $(this);
+    var selector = $this.attr('data-target');
+    if (!selector) {
+      selector = $this.attr('href');
+      selector = selector && selector.replace(/.*(?=#[^\s]*$)/, '');
+    }
+    var $parent = $(selector);
+    if (e)
+      e.preventDefault();
+    if (!$parent.length) {
+      $parent = $this.hasClass('alert') ? $this : $this.parent();
+    }
+    $parent.trigger(e = $.Event('close.bs.alert'));
+    if (e.isDefaultPrevented())
+      return;
+    $parent.removeClass('in');
+    function removeElement() {
+      $parent.trigger('closed.bs.alert').remove();
+    }
+    $.support.transition && $parent.hasClass('fade') ? $parent.one($.support.transition.end, removeElement).emulateTransitionEnd(150) : removeElement();
+  };
+  // ALERT PLUGIN DEFINITION
+  // =======================
+  var old = $.fn.alert;
+  $.fn.alert = function (option) {
+    return this.each(function () {
+      var $this = $(this);
+      var data = $this.data('bs.alert');
+      if (!data)
+        $this.data('bs.alert', data = new Alert(this));
+      if (typeof option == 'string')
+        data[option].call($this);
+    });
+  };
+  $.fn.alert.Constructor = Alert;
+  // ALERT NO CONFLICT
+  // =================
+  $.fn.alert.noConflict = function () {
+    $.fn.alert = old;
+    return this;
+  };
+  // ALERT DATA-API
+  // ==============
+  $(document).on('click.bs.alert.data-api', dismiss, Alert.prototype.close);
+}(jQuery);
+/* ========================================================================
+ * Bootstrap: button.js v3.1.1
+ * http://getbootstrap.com/javascript/#buttons
+ * ========================================================================
+ * Copyright 2011-2014 Twitter, Inc.
+ * Licensed under MIT (https://github.com/twbs/bootstrap/blob/master/LICENSE)
+ * ======================================================================== */
++function ($) {
+  'use strict';
+  // BUTTON PUBLIC CLASS DEFINITION
+  // ==============================
+  var Button = function (element, options) {
+    this.$element = $(element);
+    this.options = $.extend({}, Button.DEFAULTS, options);
+    this.isLoading = false;
+  };
+  Button.DEFAULTS = { loadingText: 'loading...' };
+  Button.prototype.setState = function (state) {
+    var d = 'disabled';
+    var $el = this.$element;
+    var val = $el.is('input') ? 'val' : 'html';
+    var data = $el.data();
+    state = state + 'Text';
+    if (!data.resetText)
+      $el.data('resetText', $el[val]());
+    $el[val](data[state] || this.options[state]);
+    // push to event loop to allow forms to submit
+    setTimeout($.proxy(function () {
+      if (state == 'loadingText') {
+        this.isLoading = true;
+        $el.addClass(d).attr(d, d);
+      } else if (this.isLoading) {
+        this.isLoading = false;
+        $el.removeClass(d).removeAttr(d);
+      }
+    }, this), 0);
+  };
+  Button.prototype.toggle = function () {
+    var changed = true;
+    var $parent = this.$element.closest('[data-toggle="buttons"]');
+    if ($parent.length) {
+      var $input = this.$element.find('input');
+      if ($input.prop('type') == 'radio') {
+        if ($input.prop('checked') && this.$element.hasClass('active'))
+          changed = false;
+        else
+          $parent.find('.active').removeClass('active');
+      }
+      if (changed)
+        $input.prop('checked', !this.$element.hasClass('active')).trigger('change');
+    }
+    if (changed)
+      this.$element.toggleClass('active');
+  };
+  // BUTTON PLUGIN DEFINITION
+  // ========================
+  var old = $.fn.button;
+  $.fn.button = function (option) {
+    return this.each(function () {
+      var $this = $(this);
+      var data = $this.data('bs.button');
+      var options = typeof option == 'object' && option;
+      if (!data)
+        $this.data('bs.button', data = new Button(this, options));
+      if (option == 'toggle')
+        data.toggle();
+      else if (option)
+        data.setState(option);
+    });
+  };
+  $.fn.button.Constructor = Button;
+  // BUTTON NO CONFLICT
+  // ==================
+  $.fn.button.noConflict = function () {
+    $.fn.button = old;
+    return this;
+  };
+  // BUTTON DATA-API
+  // ===============
+  $(document).on('click.bs.button.data-api', '[data-toggle^=button]', function (e) {
+    var $btn = $(e.target);
+    if (!$btn.hasClass('btn'))
+      $btn = $btn.closest('.btn');
+    $btn.button('toggle');
+    e.preventDefault();
+  });
+}(jQuery);
+/* ========================================================================
+ * Bootstrap: carousel.js v3.1.1
+ * http://getbootstrap.com/javascript/#carousel
+ * ========================================================================
+ * Copyright 2011-2014 Twitter, Inc.
+ * Licensed under MIT (https://github.com/twbs/bootstrap/blob/master/LICENSE)
+ * ======================================================================== */
++function ($) {
+  'use strict';
+  // CAROUSEL CLASS DEFINITION
+  // =========================
+  var Carousel = function (element, options) {
+    this.$element = $(element);
+    this.$indicators = this.$element.find('.carousel-indicators');
+    this.options = options;
+    this.paused = this.sliding = this.interval = this.$active = this.$items = null;
+    this.options.pause == 'hover' && this.$element.on('mouseenter', $.proxy(this.pause, this)).on('mouseleave', $.proxy(this.cycle, this));
+  };
+  Carousel.DEFAULTS = {
+    interval: 5000,
+    pause: 'hover',
+    wrap: true
+  };
+  Carousel.prototype.cycle = function (e) {
+    e || (this.paused = false);
+    this.interval && clearInterval(this.interval);
+    this.options.interval && !this.paused && (this.interval = setInterval($.proxy(this.next, this), this.options.interval));
+    return this;
+  };
+  Carousel.prototype.getActiveIndex = function () {
+    this.$active = this.$element.find('.item.active');
+    this.$items = this.$active.parent().children();
+    return this.$items.index(this.$active);
+  };
+  Carousel.prototype.to = function (pos) {
+    var that = this;
+    var activeIndex = this.getActiveIndex();
+    if (pos > this.$items.length - 1 || pos < 0)
+      return;
+    if (this.sliding)
+      return this.$element.one('slid.bs.carousel', function () {
+        that.to(pos);
+      });
+    if (activeIndex == pos)
+      return this.pause().cycle();
+    return this.slide(pos > activeIndex ? 'next' : 'prev', $(this.$items[pos]));
+  };
+  Carousel.prototype.pause = function (e) {
+    e || (this.paused = true);
+    if (this.$element.find('.next, .prev').length && $.support.transition) {
+      this.$element.trigger($.support.transition.end);
+      this.cycle(true);
+    }
+    this.interval = clearInterval(this.interval);
+    return this;
+  };
+  Carousel.prototype.next = function () {
+    if (this.sliding)
+      return;
+    return this.slide('next');
+  };
+  Carousel.prototype.prev = function () {
+    if (this.sliding)
+      return;
+    return this.slide('prev');
+  };
+  Carousel.prototype.slide = function (type, next) {
+    var $active = this.$element.find('.item.active');
+    var $next = next || $active[type]();
+    var isCycling = this.interval;
+    var direction = type == 'next' ? 'left' : 'right';
+    var fallback = type == 'next' ? 'first' : 'last';
+    var that = this;
+    if (!$next.length) {
+      if (!this.options.wrap)
+        return;
+      $next = this.$element.find('.item')[fallback]();
+    }
+    if ($next.hasClass('active'))
+      return this.sliding = false;
+    var e = $.Event('slide.bs.carousel', {
+        relatedTarget: $next[0],
+        direction: direction
+      });
+    this.$element.trigger(e);
+    if (e.isDefaultPrevented())
+      return;
+    this.sliding = true;
+    isCycling && this.pause();
+    if (this.$indicators.length) {
+      this.$indicators.find('.active').removeClass('active');
+      this.$element.one('slid.bs.carousel', function () {
+        var $nextIndicator = $(that.$indicators.children()[that.getActiveIndex()]);
+        $nextIndicator && $nextIndicator.addClass('active');
+      });
+    }
+    if ($.support.transition && this.$element.hasClass('slide')) {
+      $next.addClass(type);
+      $next[0].offsetWidth;
+      // force reflow
+      $active.addClass(direction);
+      $next.addClass(direction);
+      $active.one($.support.transition.end, function () {
+        $next.removeClass([
+          type,
+          direction
+        ].join(' ')).addClass('active');
+        $active.removeClass([
+          'active',
+          direction
+        ].join(' '));
+        that.sliding = false;
+        setTimeout(function () {
+          that.$element.trigger('slid.bs.carousel');
+        }, 0);
+      }).emulateTransitionEnd($active.css('transition-duration').slice(0, -1) * 1000);
+    } else {
+      $active.removeClass('active');
+      $next.addClass('active');
+      this.sliding = false;
+      this.$element.trigger('slid.bs.carousel');
+    }
+    isCycling && this.cycle();
+    return this;
+  };
+  // CAROUSEL PLUGIN DEFINITION
+  // ==========================
+  var old = $.fn.carousel;
+  $.fn.carousel = function (option) {
+    return this.each(function () {
+      var $this = $(this);
+      var data = $this.data('bs.carousel');
+      var options = $.extend({}, Carousel.DEFAULTS, $this.data(), typeof option == 'object' && option);
+      var action = typeof option == 'string' ? option : options.slide;
+      if (!data)
+        $this.data('bs.carousel', data = new Carousel(this, options));
+      if (typeof option == 'number')
+        data.to(option);
+      else if (action)
+        data[action]();
+      else if (options.interval)
+        data.pause().cycle();
+    });
+  };
+  $.fn.carousel.Constructor = Carousel;
+  // CAROUSEL NO CONFLICT
+  // ====================
+  $.fn.carousel.noConflict = function () {
+    $.fn.carousel = old;
+    return this;
+  };
+  // CAROUSEL DATA-API
+  // =================
+  $(document).on('click.bs.carousel.data-api', '[data-slide], [data-slide-to]', function (e) {
+    var $this = $(this), href;
+    var $target = $($this.attr('data-target') || (href = $this.attr('href')) && href.replace(/.*(?=#[^\s]+$)/, ''));
+    //strip for ie7
+    var options = $.extend({}, $target.data(), $this.data());
+    var slideIndex = $this.attr('data-slide-to');
+    if (slideIndex)
+      options.interval = false;
+    $target.carousel(options);
+    if (slideIndex = $this.attr('data-slide-to')) {
+      $target.data('bs.carousel').to(slideIndex);
+    }
+    e.preventDefault();
+  });
+  $(window).on('load', function () {
+    $('[data-ride="carousel"]').each(function () {
+      var $carousel = $(this);
+      $carousel.carousel($carousel.data());
+    });
+  });
+}(jQuery);
+/* ========================================================================
+ * Bootstrap: collapse.js v3.1.1
+ * http://getbootstrap.com/javascript/#collapse
+ * ========================================================================
+ * Copyright 2011-2014 Twitter, Inc.
+ * Licensed under MIT (https://github.com/twbs/bootstrap/blob/master/LICENSE)
+ * ======================================================================== */
++function ($) {
+  'use strict';
+  // COLLAPSE PUBLIC CLASS DEFINITION
+  // ================================
+  var Collapse = function (element, options) {
+    this.$element = $(element);
+    this.options = $.extend({}, Collapse.DEFAULTS, options);
+    this.transitioning = null;
+    if (this.options.parent)
+      this.$parent = $(this.options.parent);
+    if (this.options.toggle)
+      this.toggle();
+  };
+  Collapse.DEFAULTS = { toggle: true };
+  Collapse.prototype.dimension = function () {
+    var hasWidth = this.$element.hasClass('width');
+    return hasWidth ? 'width' : 'height';
+  };
+  Collapse.prototype.show = function () {
+    if (this.transitioning || this.$element.hasClass('in'))
+      return;
+    var startEvent = $.Event('show.bs.collapse');
+    this.$element.trigger(startEvent);
+    if (startEvent.isDefaultPrevented())
+      return;
+    var actives = this.$parent && this.$parent.find('> .panel > .in');
+    if (actives && actives.length) {
+      var hasData = actives.data('bs.collapse');
+      if (hasData && hasData.transitioning)
+        return;
+      actives.collapse('hide');
+      hasData || actives.data('bs.collapse', null);
+    }
+    var dimension = this.dimension();
+    this.$element.removeClass('collapse').addClass('collapsing')[dimension](0);
+    this.transitioning = 1;
+    var complete = function () {
+      this.$element.removeClass('collapsing').addClass('collapse in')[dimension]('auto');
+      this.transitioning = 0;
+      this.$element.trigger('shown.bs.collapse');
+    };
+    if (!$.support.transition)
+      return complete.call(this);
+    var scrollSize = $.camelCase([
+        'scroll',
+        dimension
+      ].join('-'));
+    this.$element.one($.support.transition.end, $.proxy(complete, this)).emulateTransitionEnd(350)[dimension](this.$element[0][scrollSize]);
+  };
+  Collapse.prototype.hide = function () {
+    if (this.transitioning || !this.$element.hasClass('in'))
+      return;
+    var startEvent = $.Event('hide.bs.collapse');
+    this.$element.trigger(startEvent);
+    if (startEvent.isDefaultPrevented())
+      return;
+    var dimension = this.dimension();
+    this.$element[dimension](this.$element[dimension]())[0].offsetHeight;
+    this.$element.addClass('collapsing').removeClass('collapse').removeClass('in');
+    this.transitioning = 1;
+    var complete = function () {
+      this.transitioning = 0;
+      this.$element.trigger('hidden.bs.collapse').removeClass('collapsing').addClass('collapse');
+    };
+    if (!$.support.transition)
+      return complete.call(this);
+    this.$element[dimension](0).one($.support.transition.end, $.proxy(complete, this)).emulateTransitionEnd(350);
+  };
+  Collapse.prototype.toggle = function () {
+    this[this.$element.hasClass('in') ? 'hide' : 'show']();
+  };
+  // COLLAPSE PLUGIN DEFINITION
+  // ==========================
+  var old = $.fn.collapse;
+  $.fn.collapse = function (option) {
+    return this.each(function () {
+      var $this = $(this);
+      var data = $this.data('bs.collapse');
+      var options = $.extend({}, Collapse.DEFAULTS, $this.data(), typeof option == 'object' && option);
+      if (!data && options.toggle && option == 'show')
+        option = !option;
+      if (!data)
+        $this.data('bs.collapse', data = new Collapse(this, options));
+      if (typeof option == 'string')
+        data[option]();
+    });
+  };
+  $.fn.collapse.Constructor = Collapse;
+  // COLLAPSE NO CONFLICT
+  // ====================
+  $.fn.collapse.noConflict = function () {
+    $.fn.collapse = old;
+    return this;
+  };
+  // COLLAPSE DATA-API
+  // =================
+  $(document).on('click.bs.collapse.data-api', '[data-toggle=collapse]', function (e) {
+    var $this = $(this), href;
+    var target = $this.attr('data-target') || e.preventDefault() || (href = $this.attr('href')) && href.replace(/.*(?=#[^\s]+$)/, '');
+    //strip for ie7
+    var $target = $(target);
+    var data = $target.data('bs.collapse');
+    var option = data ? 'toggle' : $this.data();
+    var parent = $this.attr('data-parent');
+    var $parent = parent && $(parent);
+    if (!data || !data.transitioning) {
+      if ($parent)
+        $parent.find('[data-toggle=collapse][data-parent="' + parent + '"]').not($this).addClass('collapsed');
+      $this[$target.hasClass('in') ? 'addClass' : 'removeClass']('collapsed');
+    }
+    $target.collapse(option);
+  });
+}(jQuery);
+/* ========================================================================
+ * Bootstrap: dropdown.js v3.1.1
+ * http://getbootstrap.com/javascript/#dropdowns
+ * ========================================================================
+ * Copyright 2011-2014 Twitter, Inc.
+ * Licensed under MIT (https://github.com/twbs/bootstrap/blob/master/LICENSE)
+ * ======================================================================== */
++function ($) {
+  'use strict';
+  // DROPDOWN CLASS DEFINITION
+  // =========================
+  var backdrop = '.dropdown-backdrop';
+  var toggle = '[data-toggle=dropdown]';
+  var Dropdown = function (element) {
+    $(element).on('click.bs.dropdown', this.toggle);
+  };
+  Dropdown.prototype.toggle = function (e) {
+    var $this = $(this);
+    if ($this.is('.disabled, :disabled'))
+      return;
+    var $parent = getParent($this);
+    var isActive = $parent.hasClass('open');
+    clearMenus();
+    if (!isActive) {
+      if ('ontouchstart' in document.documentElement && !$parent.closest('.navbar-nav').length) {
+        // if mobile we use a backdrop because click events don't delegate
+        $('<div class="dropdown-backdrop"/>').insertAfter($(this)).on('click', clearMenus);
+      }
+      var relatedTarget = { relatedTarget: this };
+      $parent.trigger(e = $.Event('show.bs.dropdown', relatedTarget));
+      if (e.isDefaultPrevented())
+        return;
+      $parent.toggleClass('open').trigger('shown.bs.dropdown', relatedTarget);
+      $this.focus();
+    }
+    return false;
+  };
+  Dropdown.prototype.keydown = function (e) {
+    if (!/(38|40|27)/.test(e.keyCode))
+      return;
+    var $this = $(this);
+    e.preventDefault();
+    e.stopPropagation();
+    if ($this.is('.disabled, :disabled'))
+      return;
+    var $parent = getParent($this);
+    var isActive = $parent.hasClass('open');
+    if (!isActive || isActive && e.keyCode == 27) {
+      if (e.which == 27)
+        $parent.find(toggle).focus();
+      return $this.click();
+    }
+    var desc = ' li:not(.divider):visible a';
+    var $items = $parent.find('[role=menu]' + desc + ', [role=listbox]' + desc);
+    if (!$items.length)
+      return;
+    var index = $items.index($items.filter(':focus'));
+    if (e.keyCode == 38 && index > 0)
+      index--;
+    // up
+    if (e.keyCode == 40 && index < $items.length - 1)
+      index++;
+    // down
+    if (!~index)
+      index = 0;
+    $items.eq(index).focus();
+  };
+  function clearMenus(e) {
+    $(backdrop).remove();
+    $(toggle).each(function () {
+      var $parent = getParent($(this));
+      var relatedTarget = { relatedTarget: this };
+      if (!$parent.hasClass('open'))
+        return;
+      $parent.trigger(e = $.Event('hide.bs.dropdown', relatedTarget));
+      if (e.isDefaultPrevented())
+        return;
+      $parent.removeClass('open').trigger('hidden.bs.dropdown', relatedTarget);
+    });
+  }
+  function getParent($this) {
+    var selector = $this.attr('data-target');
+    if (!selector) {
+      selector = $this.attr('href');
+      selector = selector && /#[A-Za-z]/.test(selector) && selector.replace(/.*(?=#[^\s]*$)/, '');
+    }
+    var $parent = selector && $(selector);
+    return $parent && $parent.length ? $parent : $this.parent();
+  }
+  // DROPDOWN PLUGIN DEFINITION
+  // ==========================
+  var old = $.fn.dropdown;
+  $.fn.dropdown = function (option) {
+    return this.each(function () {
+      var $this = $(this);
+      var data = $this.data('bs.dropdown');
+      if (!data)
+        $this.data('bs.dropdown', data = new Dropdown(this));
+      if (typeof option == 'string')
+        data[option].call($this);
+    });
+  };
+  $.fn.dropdown.Constructor = Dropdown;
+  // DROPDOWN NO CONFLICT
+  // ====================
+  $.fn.dropdown.noConflict = function () {
+    $.fn.dropdown = old;
+    return this;
+  };
+  // APPLY TO STANDARD DROPDOWN ELEMENTS
+  // ===================================
+  $(document).on('click.bs.dropdown.data-api', clearMenus).on('click.bs.dropdown.data-api', '.dropdown form', function (e) {
+    e.stopPropagation();
+  }).on('click.bs.dropdown.data-api', toggle, Dropdown.prototype.toggle).on('keydown.bs.dropdown.data-api', toggle + ', [role=menu], [role=listbox]', Dropdown.prototype.keydown);
+}(jQuery);
+/* ========================================================================
+ * Bootstrap: modal.js v3.1.1
+ * http://getbootstrap.com/javascript/#modals
+ * ========================================================================
+ * Copyright 2011-2014 Twitter, Inc.
+ * Licensed under MIT (https://github.com/twbs/bootstrap/blob/master/LICENSE)
+ * ======================================================================== */
++function ($) {
+  'use strict';
+  // MODAL CLASS DEFINITION
+  // ======================
+  var Modal = function (element, options) {
+    this.options = options;
+    this.$element = $(element);
+    this.$backdrop = this.isShown = null;
+    if (this.options.remote) {
+      this.$element.find('.modal-content').load(this.options.remote, $.proxy(function () {
+        this.$element.trigger('loaded.bs.modal');
+      }, this));
+    }
+  };
+  Modal.DEFAULTS = {
+    backdrop: true,
+    keyboard: true,
+    show: true
+  };
+  Modal.prototype.toggle = function (_relatedTarget) {
+    return this[!this.isShown ? 'show' : 'hide'](_relatedTarget);
+  };
+  Modal.prototype.show = function (_relatedTarget) {
+    var that = this;
+    var e = $.Event('show.bs.modal', { relatedTarget: _relatedTarget });
+    this.$element.trigger(e);
+    if (this.isShown || e.isDefaultPrevented())
+      return;
+    this.isShown = true;
+    this.escape();
+    this.$element.on('click.dismiss.bs.modal', '[data-dismiss="modal"]', $.proxy(this.hide, this));
+    this.backdrop(function () {
+      var transition = $.support.transition && that.$element.hasClass('fade');
+      if (!that.$element.parent().length) {
+        that.$element.appendTo(document.body);
+      }
+      that.$element.show().scrollTop(0);
+      if (transition) {
+        that.$element[0].offsetWidth;
+      }
+      that.$element.addClass('in').attr('aria-hidden', false);
+      that.enforceFocus();
+      var e = $.Event('shown.bs.modal', { relatedTarget: _relatedTarget });
+      transition ? that.$element.find('.modal-dialog').one($.support.transition.end, function () {
+        that.$element.focus().trigger(e);
+      }).emulateTransitionEnd(300) : that.$element.focus().trigger(e);
+    });
+  };
+  Modal.prototype.hide = function (e) {
+    if (e)
+      e.preventDefault();
+    e = $.Event('hide.bs.modal');
+    this.$element.trigger(e);
+    if (!this.isShown || e.isDefaultPrevented())
+      return;
+    this.isShown = false;
+    this.escape();
+    $(document).off('focusin.bs.modal');
+    this.$element.removeClass('in').attr('aria-hidden', true).off('click.dismiss.bs.modal');
+    $.support.transition && this.$element.hasClass('fade') ? this.$element.one($.support.transition.end, $.proxy(this.hideModal, this)).emulateTransitionEnd(300) : this.hideModal();
+  };
+  Modal.prototype.enforceFocus = function () {
+    $(document).off('focusin.bs.modal').on('focusin.bs.modal', $.proxy(function (e) {
+      if (this.$element[0] !== e.target && !this.$element.has(e.target).length) {
+        this.$element.focus();
+      }
+    }, this));
+  };
+  Modal.prototype.escape = function () {
+    if (this.isShown && this.options.keyboard) {
+      this.$element.on('keyup.dismiss.bs.modal', $.proxy(function (e) {
+        e.which == 27 && this.hide();
+      }, this));
+    } else if (!this.isShown) {
+      this.$element.off('keyup.dismiss.bs.modal');
+    }
+  };
+  Modal.prototype.hideModal = function () {
+    var that = this;
+    this.$element.hide();
+    this.backdrop(function () {
+      that.removeBackdrop();
+      that.$element.trigger('hidden.bs.modal');
+    });
+  };
+  Modal.prototype.removeBackdrop = function () {
+    this.$backdrop && this.$backdrop.remove();
+    this.$backdrop = null;
+  };
+  Modal.prototype.backdrop = function (callback) {
+    var animate = this.$element.hasClass('fade') ? 'fade' : '';
+    if (this.isShown && this.options.backdrop) {
+      var doAnimate = $.support.transition && animate;
+      this.$backdrop = $('<div class="modal-backdrop ' + animate + '" />').appendTo(document.body);
+      this.$element.on('click.dismiss.bs.modal', $.proxy(function (e) {
+        if (e.target !== e.currentTarget)
+          return;
+        this.options.backdrop == 'static' ? this.$element[0].focus.call(this.$element[0]) : this.hide.call(this);
+      }, this));
+      if (doAnimate)
+        this.$backdrop[0].offsetWidth;
+      // force reflow
+      this.$backdrop.addClass('in');
+      if (!callback)
+        return;
+      doAnimate ? this.$backdrop.one($.support.transition.end, callback).emulateTransitionEnd(150) : callback();
+    } else if (!this.isShown && this.$backdrop) {
+      this.$backdrop.removeClass('in');
+      $.support.transition && this.$element.hasClass('fade') ? this.$backdrop.one($.support.transition.end, callback).emulateTransitionEnd(150) : callback();
+    } else if (callback) {
+      callback();
+    }
+  };
+  // MODAL PLUGIN DEFINITION
+  // =======================
+  var old = $.fn.modal;
+  $.fn.modal = function (option, _relatedTarget) {
+    return this.each(function () {
+      var $this = $(this);
+      var data = $this.data('bs.modal');
+      var options = $.extend({}, Modal.DEFAULTS, $this.data(), typeof option == 'object' && option);
+      if (!data)
+        $this.data('bs.modal', data = new Modal(this, options));
+      if (typeof option == 'string')
+        data[option](_relatedTarget);
+      else if (options.show)
+        data.show(_relatedTarget);
+    });
+  };
+  $.fn.modal.Constructor = Modal;
+  // MODAL NO CONFLICT
+  // =================
+  $.fn.modal.noConflict = function () {
+    $.fn.modal = old;
+    return this;
+  };
+  // MODAL DATA-API
+  // ==============
+  $(document).on('click.bs.modal.data-api', '[data-toggle="modal"]', function (e) {
+    var $this = $(this);
+    var href = $this.attr('href');
+    var $target = $($this.attr('data-target') || href && href.replace(/.*(?=#[^\s]+$)/, ''));
+    //strip for ie7
+    var option = $target.data('bs.modal') ? 'toggle' : $.extend({ remote: !/#/.test(href) && href }, $target.data(), $this.data());
+    if ($this.is('a'))
+      e.preventDefault();
+    $target.modal(option, this).one('hide', function () {
+      $this.is(':visible') && $this.focus();
+    });
+  });
+  $(document).on('show.bs.modal', '.modal', function () {
+    $(document.body).addClass('modal-open');
+  }).on('hidden.bs.modal', '.modal', function () {
+    $(document.body).removeClass('modal-open');
+  });
+}(jQuery);
+/* ========================================================================
+ * Bootstrap: tooltip.js v3.1.1
+ * http://getbootstrap.com/javascript/#tooltip
+ * Inspired by the original jQuery.tipsy by Jason Frame
+ * ========================================================================
+ * Copyright 2011-2014 Twitter, Inc.
+ * Licensed under MIT (https://github.com/twbs/bootstrap/blob/master/LICENSE)
+ * ======================================================================== */
++function ($) {
+  'use strict';
+  // TOOLTIP PUBLIC CLASS DEFINITION
+  // ===============================
+  var Tooltip = function (element, options) {
+    this.type = this.options = this.enabled = this.timeout = this.hoverState = this.$element = null;
+    this.init('tooltip', element, options);
+  };
+  Tooltip.DEFAULTS = {
+    animation: true,
+    placement: 'top',
+    selector: false,
+    template: '<div class="tooltip"><div class="tooltip-arrow"></div><div class="tooltip-inner"></div></div>',
+    trigger: 'hover focus',
+    title: '',
+    delay: 0,
+    html: false,
+    container: false
+  };
+  Tooltip.prototype.init = function (type, element, options) {
+    this.enabled = true;
+    this.type = type;
+    this.$element = $(element);
+    this.options = this.getOptions(options);
+    var triggers = this.options.trigger.split(' ');
+    for (var i = triggers.length; i--;) {
+      var trigger = triggers[i];
+      if (trigger == 'click') {
+        this.$element.on('click.' + this.type, this.options.selector, $.proxy(this.toggle, this));
+      } else if (trigger != 'manual') {
+        var eventIn = trigger == 'hover' ? 'mouseenter' : 'focusin';
+        var eventOut = trigger == 'hover' ? 'mouseleave' : 'focusout';
+        this.$element.on(eventIn + '.' + this.type, this.options.selector, $.proxy(this.enter, this));
+        this.$element.on(eventOut + '.' + this.type, this.options.selector, $.proxy(this.leave, this));
+      }
+    }
+    this.options.selector ? this._options = $.extend({}, this.options, {
+      trigger: 'manual',
+      selector: ''
+    }) : this.fixTitle();
+  };
+  Tooltip.prototype.getDefaults = function () {
+    return Tooltip.DEFAULTS;
+  };
+  Tooltip.prototype.getOptions = function (options) {
+    options = $.extend({}, this.getDefaults(), this.$element.data(), options);
+    if (options.delay && typeof options.delay == 'number') {
+      options.delay = {
+        show: options.delay,
+        hide: options.delay
+      };
+    }
+    return options;
+  };
+  Tooltip.prototype.getDelegateOptions = function () {
+    var options = {};
+    var defaults = this.getDefaults();
+    this._options && $.each(this._options, function (key, value) {
+      if (defaults[key] != value)
+        options[key] = value;
+    });
+    return options;
+  };
+  Tooltip.prototype.enter = function (obj) {
+    var self = obj instanceof this.constructor ? obj : $(obj.currentTarget)[this.type](this.getDelegateOptions()).data('bs.' + this.type);
+    clearTimeout(self.timeout);
+    self.hoverState = 'in';
+    if (!self.options.delay || !self.options.delay.show)
+      return self.show();
+    self.timeout = setTimeout(function () {
+      if (self.hoverState == 'in')
+        self.show();
+    }, self.options.delay.show);
+  };
+  Tooltip.prototype.leave = function (obj) {
+    var self = obj instanceof this.constructor ? obj : $(obj.currentTarget)[this.type](this.getDelegateOptions()).data('bs.' + this.type);
+    clearTimeout(self.timeout);
+    self.hoverState = 'out';
+    if (!self.options.delay || !self.options.delay.hide)
+      return self.hide();
+    self.timeout = setTimeout(function () {
+      if (self.hoverState == 'out')
+        self.hide();
+    }, self.options.delay.hide);
+  };
+  Tooltip.prototype.show = function () {
+    var e = $.Event('show.bs.' + this.type);
+    if (this.hasContent() && this.enabled) {
+      this.$element.trigger(e);
+      if (e.isDefaultPrevented())
+        return;
+      var that = this;
+      var $tip = this.tip();
+      this.setContent();
+      if (this.options.animation)
+        $tip.addClass('fade');
+      var placement = typeof this.options.placement == 'function' ? this.options.placement.call(this, $tip[0], this.$element[0]) : this.options.placement;
+      var autoToken = /\s?auto?\s?/i;
+      var autoPlace = autoToken.test(placement);
+      if (autoPlace)
+        placement = placement.replace(autoToken, '') || 'top';
+      $tip.detach().css({
+        top: 0,
+        left: 0,
+        display: 'block'
+      }).addClass(placement);
+      this.options.container ? $tip.appendTo(this.options.container) : $tip.insertAfter(this.$element);
+      var pos = this.getPosition();
+      var actualWidth = $tip[0].offsetWidth;
+      var actualHeight = $tip[0].offsetHeight;
+      if (autoPlace) {
+        var $parent = this.$element.parent();
+        var orgPlacement = placement;
+        var docScroll = document.documentElement.scrollTop || document.body.scrollTop;
+        var parentWidth = this.options.container == 'body' ? window.innerWidth : $parent.outerWidth();
+        var parentHeight = this.options.container == 'body' ? window.innerHeight : $parent.outerHeight();
+        var parentLeft = this.options.container == 'body' ? 0 : $parent.offset().left;
+        placement = placement == 'bottom' && pos.top + pos.height + actualHeight - docScroll > parentHeight ? 'top' : placement == 'top' && pos.top - docScroll - actualHeight < 0 ? 'bottom' : placement == 'right' && pos.right + actualWidth > parentWidth ? 'left' : placement == 'left' && pos.left - actualWidth < parentLeft ? 'right' : placement;
+        $tip.removeClass(orgPlacement).addClass(placement);
+      }
+      var calculatedOffset = this.getCalculatedOffset(placement, pos, actualWidth, actualHeight);
+      this.applyPlacement(calculatedOffset, placement);
+      this.hoverState = null;
+      var complete = function () {
+        that.$element.trigger('shown.bs.' + that.type);
+      };
+      $.support.transition && this.$tip.hasClass('fade') ? $tip.one($.support.transition.end, complete).emulateTransitionEnd(150) : complete();
+    }
+  };
+  Tooltip.prototype.applyPlacement = function (offset, placement) {
+    var replace;
+    var $tip = this.tip();
+    var width = $tip[0].offsetWidth;
+    var height = $tip[0].offsetHeight;
+    // manually read margins because getBoundingClientRect includes difference
+    var marginTop = parseInt($tip.css('margin-top'), 10);
+    var marginLeft = parseInt($tip.css('margin-left'), 10);
+    // we must check for NaN for ie 8/9
+    if (isNaN(marginTop))
+      marginTop = 0;
+    if (isNaN(marginLeft))
+      marginLeft = 0;
+    offset.top = offset.top + marginTop;
+    offset.left = offset.left + marginLeft;
+    // $.fn.offset doesn't round pixel values
+    // so we use setOffset directly with our own function B-0
+    $.offset.setOffset($tip[0], $.extend({
+      using: function (props) {
+        $tip.css({
+          top: Math.round(props.top),
+          left: Math.round(props.left)
+        });
+      }
+    }, offset), 0);
+    $tip.addClass('in');
+    // check to see if placing tip in new offset caused the tip to resize itself
+    var actualWidth = $tip[0].offsetWidth;
+    var actualHeight = $tip[0].offsetHeight;
+    if (placement == 'top' && actualHeight != height) {
+      replace = true;
+      offset.top = offset.top + height - actualHeight;
+    }
+    if (/bottom|top/.test(placement)) {
+      var delta = 0;
+      if (offset.left < 0) {
+        delta = offset.left * -2;
+        offset.left = 0;
+        $tip.offset(offset);
+        actualWidth = $tip[0].offsetWidth;
+        actualHeight = $tip[0].offsetHeight;
+      }
+      this.replaceArrow(delta - width + actualWidth, actualWidth, 'left');
+    } else {
+      this.replaceArrow(actualHeight - height, actualHeight, 'top');
+    }
+    if (replace)
+      $tip.offset(offset);
+  };
+  Tooltip.prototype.replaceArrow = function (delta, dimension, position) {
+    this.arrow().css(position, delta ? 50 * (1 - delta / dimension) + '%' : '');
+  };
+  Tooltip.prototype.setContent = function () {
+    var $tip = this.tip();
+    var title = this.getTitle();
+    $tip.find('.tooltip-inner')[this.options.html ? 'html' : 'text'](title);
+    $tip.removeClass('fade in top bottom left right');
+  };
+  Tooltip.prototype.hide = function () {
+    var that = this;
+    var $tip = this.tip();
+    var e = $.Event('hide.bs.' + this.type);
+    function complete() {
+      if (that.hoverState != 'in')
+        $tip.detach();
+      that.$element.trigger('hidden.bs.' + that.type);
+    }
+    this.$element.trigger(e);
+    if (e.isDefaultPrevented())
+      return;
+    $tip.removeClass('in');
+    $.support.transition && this.$tip.hasClass('fade') ? $tip.one($.support.transition.end, complete).emulateTransitionEnd(150) : complete();
+    this.hoverState = null;
+    return this;
+  };
+  Tooltip.prototype.fixTitle = function () {
+    var $e = this.$element;
+    if ($e.attr('title') || typeof $e.attr('data-original-title') != 'string') {
+      $e.attr('data-original-title', $e.attr('title') || '').attr('title', '');
+    }
+  };
+  Tooltip.prototype.hasContent = function () {
+    return this.getTitle();
+  };
+  Tooltip.prototype.getPosition = function () {
+    var el = this.$element[0];
+    return $.extend({}, typeof el.getBoundingClientRect == 'function' ? el.getBoundingClientRect() : {
+      width: el.offsetWidth,
+      height: el.offsetHeight
+    }, this.$element.offset());
+  };
+  Tooltip.prototype.getCalculatedOffset = function (placement, pos, actualWidth, actualHeight) {
+    return placement == 'bottom' ? {
+      top: pos.top + pos.height,
+      left: pos.left + pos.width / 2 - actualWidth / 2
+    } : placement == 'top' ? {
+      top: pos.top - actualHeight,
+      left: pos.left + pos.width / 2 - actualWidth / 2
+    } : placement == 'left' ? {
+      top: pos.top + pos.height / 2 - actualHeight / 2,
+      left: pos.left - actualWidth
+    } : {
+      top: pos.top + pos.height / 2 - actualHeight / 2,
+      left: pos.left + pos.width
+    };
+  };
+  Tooltip.prototype.getTitle = function () {
+    var title;
+    var $e = this.$element;
+    var o = this.options;
+    title = $e.attr('data-original-title') || (typeof o.title == 'function' ? o.title.call($e[0]) : o.title);
+    return title;
+  };
+  Tooltip.prototype.tip = function () {
+    return this.$tip = this.$tip || $(this.options.template);
+  };
+  Tooltip.prototype.arrow = function () {
+    return this.$arrow = this.$arrow || this.tip().find('.tooltip-arrow');
+  };
+  Tooltip.prototype.validate = function () {
+    if (!this.$element[0].parentNode) {
+      this.hide();
+      this.$element = null;
+      this.options = null;
+    }
+  };
+  Tooltip.prototype.enable = function () {
+    this.enabled = true;
+  };
+  Tooltip.prototype.disable = function () {
+    this.enabled = false;
+  };
+  Tooltip.prototype.toggleEnabled = function () {
+    this.enabled = !this.enabled;
+  };
+  Tooltip.prototype.toggle = function (e) {
+    var self = e ? $(e.currentTarget)[this.type](this.getDelegateOptions()).data('bs.' + this.type) : this;
+    self.tip().hasClass('in') ? self.leave(self) : self.enter(self);
+  };
+  Tooltip.prototype.destroy = function () {
+    clearTimeout(this.timeout);
+    this.hide().$element.off('.' + this.type).removeData('bs.' + this.type);
+  };
+  // TOOLTIP PLUGIN DEFINITION
+  // =========================
+  var old = $.fn.tooltip;
+  $.fn.tooltip = function (option) {
+    return this.each(function () {
+      var $this = $(this);
+      var data = $this.data('bs.tooltip');
+      var options = typeof option == 'object' && option;
+      if (!data && option == 'destroy')
+        return;
+      if (!data)
+        $this.data('bs.tooltip', data = new Tooltip(this, options));
+      if (typeof option == 'string')
+        data[option]();
+    });
+  };
+  $.fn.tooltip.Constructor = Tooltip;
+  // TOOLTIP NO CONFLICT
+  // ===================
+  $.fn.tooltip.noConflict = function () {
+    $.fn.tooltip = old;
+    return this;
+  };
+}(jQuery);
+/* ========================================================================
+ * Bootstrap: popover.js v3.1.1
+ * http://getbootstrap.com/javascript/#popovers
+ * ========================================================================
+ * Copyright 2011-2014 Twitter, Inc.
+ * Licensed under MIT (https://github.com/twbs/bootstrap/blob/master/LICENSE)
+ * ======================================================================== */
++function ($) {
+  'use strict';
+  // POPOVER PUBLIC CLASS DEFINITION
+  // ===============================
+  var Popover = function (element, options) {
+    this.init('popover', element, options);
+  };
+  if (!$.fn.tooltip)
+    throw new Error('Popover requires tooltip.js');
+  Popover.DEFAULTS = $.extend({}, $.fn.tooltip.Constructor.DEFAULTS, {
+    placement: 'right',
+    trigger: 'click',
+    content: '',
+    template: '<div class="popover"><div class="arrow"></div><h3 class="popover-title"></h3><div class="popover-content"></div></div>'
+  });
+  // NOTE: POPOVER EXTENDS tooltip.js
+  // ================================
+  Popover.prototype = $.extend({}, $.fn.tooltip.Constructor.prototype);
+  Popover.prototype.constructor = Popover;
+  Popover.prototype.getDefaults = function () {
+    return Popover.DEFAULTS;
+  };
+  Popover.prototype.setContent = function () {
+    var $tip = this.tip();
+    var title = this.getTitle();
+    var content = this.getContent();
+    $tip.find('.popover-title')[this.options.html ? 'html' : 'text'](title);
+    $tip.find('.popover-content')[this.options.html ? typeof content == 'string' ? 'html' : 'append' : 'text'](content);
+    $tip.removeClass('fade top bottom left right in');
+    // IE8 doesn't accept hiding via the `:empty` pseudo selector, we have to do
+    // this manually by checking the contents.
+    if (!$tip.find('.popover-title').html())
+      $tip.find('.popover-title').hide();
+  };
+  Popover.prototype.hasContent = function () {
+    return this.getTitle() || this.getContent();
+  };
+  Popover.prototype.getContent = function () {
+    var $e = this.$element;
+    var o = this.options;
+    return $e.attr('data-content') || (typeof o.content == 'function' ? o.content.call($e[0]) : o.content);
+  };
+  Popover.prototype.arrow = function () {
+    return this.$arrow = this.$arrow || this.tip().find('.arrow');
+  };
+  Popover.prototype.tip = function () {
+    if (!this.$tip)
+      this.$tip = $(this.options.template);
+    return this.$tip;
+  };
+  // POPOVER PLUGIN DEFINITION
+  // =========================
+  var old = $.fn.popover;
+  $.fn.popover = function (option) {
+    return this.each(function () {
+      var $this = $(this);
+      var data = $this.data('bs.popover');
+      var options = typeof option == 'object' && option;
+      if (!data && option == 'destroy')
+        return;
+      if (!data)
+        $this.data('bs.popover', data = new Popover(this, options));
+      if (typeof option == 'string')
+        data[option]();
+    });
+  };
+  $.fn.popover.Constructor = Popover;
+  // POPOVER NO CONFLICT
+  // ===================
+  $.fn.popover.noConflict = function () {
+    $.fn.popover = old;
+    return this;
+  };
+}(jQuery);
+/* ========================================================================
+ * Bootstrap: scrollspy.js v3.1.1
+ * http://getbootstrap.com/javascript/#scrollspy
+ * ========================================================================
+ * Copyright 2011-2014 Twitter, Inc.
+ * Licensed under MIT (https://github.com/twbs/bootstrap/blob/master/LICENSE)
+ * ======================================================================== */
++function ($) {
+  'use strict';
+  // SCROLLSPY CLASS DEFINITION
+  // ==========================
+  function ScrollSpy(element, options) {
+    var href;
+    var process = $.proxy(this.process, this);
+    this.$element = $(element).is('body') ? $(window) : $(element);
+    this.$body = $('body');
+    this.$scrollElement = this.$element.on('scroll.bs.scroll-spy.data-api', process);
+    this.options = $.extend({}, ScrollSpy.DEFAULTS, options);
+    this.selector = (this.options.target || (href = $(element).attr('href')) && href.replace(/.*(?=#[^\s]+$)/, '') || '') + ' .nav li > a';
+    this.offsets = $([]);
+    this.targets = $([]);
+    this.activeTarget = null;
+    this.refresh();
+    this.process();
+  }
+  ScrollSpy.DEFAULTS = { offset: 10 };
+  ScrollSpy.prototype.refresh = function () {
+    var offsetMethod = this.$element[0] == window ? 'offset' : 'position';
+    this.offsets = $([]);
+    this.targets = $([]);
+    var self = this;
+    var $targets = this.$body.find(this.selector).map(function () {
+        var $el = $(this);
+        var href = $el.data('target') || $el.attr('href');
+        var $href = /^#./.test(href) && $(href);
+        return $href && $href.length && $href.is(':visible') && [[
+            $href[offsetMethod]().top + (!$.isWindow(self.$scrollElement.get(0)) && self.$scrollElement.scrollTop()),
+            href
+          ]] || null;
+      }).sort(function (a, b) {
+        return a[0] - b[0];
+      }).each(function () {
+        self.offsets.push(this[0]);
+        self.targets.push(this[1]);
+      });
+  };
+  ScrollSpy.prototype.process = function () {
+    var scrollTop = this.$scrollElement.scrollTop() + this.options.offset;
+    var scrollHeight = this.$scrollElement[0].scrollHeight || this.$body[0].scrollHeight;
+    var maxScroll = scrollHeight - this.$scrollElement.height();
+    var offsets = this.offsets;
+    var targets = this.targets;
+    var activeTarget = this.activeTarget;
+    var i;
+    if (scrollTop >= maxScroll) {
+      return activeTarget != (i = targets.last()[0]) && this.activate(i);
+    }
+    if (activeTarget && scrollTop <= offsets[0]) {
+      return activeTarget != (i = targets[0]) && this.activate(i);
+    }
+    for (i = offsets.length; i--;) {
+      activeTarget != targets[i] && scrollTop >= offsets[i] && (!offsets[i + 1] || scrollTop <= offsets[i + 1]) && this.activate(targets[i]);
+    }
+  };
+  ScrollSpy.prototype.activate = function (target) {
+    this.activeTarget = target;
+    $(this.selector).parentsUntil(this.options.target, '.active').removeClass('active');
+    var selector = this.selector + '[data-target="' + target + '"],' + this.selector + '[href="' + target + '"]';
+    var active = $(selector).parents('li').addClass('active');
+    if (active.parent('.dropdown-menu').length) {
+      active = active.closest('li.dropdown').addClass('active');
+    }
+    active.trigger('activate.bs.scrollspy');
+  };
+  // SCROLLSPY PLUGIN DEFINITION
+  // ===========================
+  var old = $.fn.scrollspy;
+  $.fn.scrollspy = function (option) {
+    return this.each(function () {
+      var $this = $(this);
+      var data = $this.data('bs.scrollspy');
+      var options = typeof option == 'object' && option;
+      if (!data)
+        $this.data('bs.scrollspy', data = new ScrollSpy(this, options));
+      if (typeof option == 'string')
+        data[option]();
+    });
+  };
+  $.fn.scrollspy.Constructor = ScrollSpy;
+  // SCROLLSPY NO CONFLICT
+  // =====================
+  $.fn.scrollspy.noConflict = function () {
+    $.fn.scrollspy = old;
+    return this;
+  };
+  // SCROLLSPY DATA-API
+  // ==================
+  $(window).on('load', function () {
+    $('[data-spy="scroll"]').each(function () {
+      var $spy = $(this);
+      $spy.scrollspy($spy.data());
+    });
+  });
+}(jQuery);
+/* ========================================================================
+ * Bootstrap: tab.js v3.1.1
+ * http://getbootstrap.com/javascript/#tabs
+ * ========================================================================
+ * Copyright 2011-2014 Twitter, Inc.
+ * Licensed under MIT (https://github.com/twbs/bootstrap/blob/master/LICENSE)
+ * ======================================================================== */
++function ($) {
+  'use strict';
+  // TAB CLASS DEFINITION
+  // ====================
+  var Tab = function (element) {
+    this.element = $(element);
+  };
+  Tab.prototype.show = function () {
+    var $this = this.element;
+    var $ul = $this.closest('ul:not(.dropdown-menu)');
+    var selector = $this.data('target');
+    if (!selector) {
+      selector = $this.attr('href');
+      selector = selector && selector.replace(/.*(?=#[^\s]*$)/, '');
+    }
+    if ($this.parent('li').hasClass('active'))
+      return;
+    var previous = $ul.find('.active:last a')[0];
+    var e = $.Event('show.bs.tab', { relatedTarget: previous });
+    $this.trigger(e);
+    if (e.isDefaultPrevented())
+      return;
+    var $target = $(selector);
+    this.activate($this.parent('li'), $ul);
+    this.activate($target, $target.parent(), function () {
+      $this.trigger({
+        type: 'shown.bs.tab',
+        relatedTarget: previous
+      });
+    });
+  };
+  Tab.prototype.activate = function (element, container, callback) {
+    var $active = container.find('> .active');
+    var transition = callback && $.support.transition && $active.hasClass('fade');
+    function next() {
+      $active.removeClass('active').find('> .dropdown-menu > .active').removeClass('active');
+      element.addClass('active');
+      if (transition) {
+        element[0].offsetWidth;
+        // reflow for transition
+        element.addClass('in');
+      } else {
+        element.removeClass('fade');
+      }
+      if (element.parent('.dropdown-menu')) {
+        element.closest('li.dropdown').addClass('active');
+      }
+      callback && callback();
+    }
+    transition ? $active.one($.support.transition.end, next).emulateTransitionEnd(150) : next();
+    $active.removeClass('in');
+  };
+  // TAB PLUGIN DEFINITION
+  // =====================
+  var old = $.fn.tab;
+  $.fn.tab = function (option) {
+    return this.each(function () {
+      var $this = $(this);
+      var data = $this.data('bs.tab');
+      if (!data)
+        $this.data('bs.tab', data = new Tab(this));
+      if (typeof option == 'string')
+        data[option]();
+    });
+  };
+  $.fn.tab.Constructor = Tab;
+  // TAB NO CONFLICT
+  // ===============
+  $.fn.tab.noConflict = function () {
+    $.fn.tab = old;
+    return this;
+  };
+  // TAB DATA-API
+  // ============
+  $(document).on('click.bs.tab.data-api', '[data-toggle="tab"], [data-toggle="pill"]', function (e) {
+    e.preventDefault();
+    $(this).tab('show');
+  });
+}(jQuery);
+/* ========================================================================
+ * Bootstrap: affix.js v3.1.1
+ * http://getbootstrap.com/javascript/#affix
+ * ========================================================================
+ * Copyright 2011-2014 Twitter, Inc.
+ * Licensed under MIT (https://github.com/twbs/bootstrap/blob/master/LICENSE)
+ * ======================================================================== */
++function ($) {
+  'use strict';
+  // AFFIX CLASS DEFINITION
+  // ======================
+  var Affix = function (element, options) {
+    this.options = $.extend({}, Affix.DEFAULTS, options);
+    this.$window = $(window).on('scroll.bs.affix.data-api', $.proxy(this.checkPosition, this)).on('click.bs.affix.data-api', $.proxy(this.checkPositionWithEventLoop, this));
+    this.$element = $(element);
+    this.affixed = this.unpin = this.pinnedOffset = null;
+    this.checkPosition();
+  };
+  Affix.RESET = 'affix affix-top affix-bottom';
+  Affix.DEFAULTS = { offset: 0 };
+  Affix.prototype.getPinnedOffset = function () {
+    if (this.pinnedOffset)
+      return this.pinnedOffset;
+    this.$element.removeClass(Affix.RESET).addClass('affix');
+    var scrollTop = this.$window.scrollTop();
+    var position = this.$element.offset();
+    return this.pinnedOffset = position.top - scrollTop;
+  };
+  Affix.prototype.checkPositionWithEventLoop = function () {
+    setTimeout($.proxy(this.checkPosition, this), 1);
+  };
+  Affix.prototype.checkPosition = function () {
+    if (!this.$element.is(':visible'))
+      return;
+    var scrollHeight = $(document).height();
+    var scrollTop = this.$window.scrollTop();
+    var position = this.$element.offset();
+    var offset = this.options.offset;
+    var offsetTop = offset.top;
+    var offsetBottom = offset.bottom;
+    if (this.affixed == 'top')
+      position.top += scrollTop;
+    if (typeof offset != 'object')
+      offsetBottom = offsetTop = offset;
+    if (typeof offsetTop == 'function')
+      offsetTop = offset.top(this.$element);
+    if (typeof offsetBottom == 'function')
+      offsetBottom = offset.bottom(this.$element);
+    var affix = this.unpin != null && scrollTop + this.unpin <= position.top ? false : offsetBottom != null && position.top + this.$element.height() >= scrollHeight - offsetBottom ? 'bottom' : offsetTop != null && scrollTop <= offsetTop ? 'top' : false;
+    if (this.affixed === affix)
+      return;
+    if (this.unpin)
+      this.$element.css('top', '');
+    var affixType = 'affix' + (affix ? '-' + affix : '');
+    var e = $.Event(affixType + '.bs.affix');
+    this.$element.trigger(e);
+    if (e.isDefaultPrevented())
+      return;
+    this.affixed = affix;
+    this.unpin = affix == 'bottom' ? this.getPinnedOffset() : null;
+    this.$element.removeClass(Affix.RESET).addClass(affixType).trigger($.Event(affixType.replace('affix', 'affixed')));
+    if (affix == 'bottom') {
+      this.$element.offset({ top: scrollHeight - offsetBottom - this.$element.height() });
+    }
+  };
+  // AFFIX PLUGIN DEFINITION
+  // =======================
+  var old = $.fn.affix;
+  $.fn.affix = function (option) {
+    return this.each(function () {
+      var $this = $(this);
+      var data = $this.data('bs.affix');
+      var options = typeof option == 'object' && option;
+      if (!data)
+        $this.data('bs.affix', data = new Affix(this, options));
+      if (typeof option == 'string')
+        data[option]();
+    });
+  };
+  $.fn.affix.Constructor = Affix;
+  // AFFIX NO CONFLICT
+  // =================
+  $.fn.affix.noConflict = function () {
+    $.fn.affix = old;
+    return this;
+  };
+  // AFFIX DATA-API
+  // ==============
+  $(window).on('load', function () {
+    $('[data-spy="affix"]').each(function () {
+      var $spy = $(this);
+      var data = $spy.data();
+      data.offset = data.offset || {};
+      if (data.offsetBottom)
+        data.offset.bottom = data.offsetBottom;
+      if (data.offsetTop)
+        data.offset.top = data.offsetTop;
+      $spy.affix(data);
+    });
+  });
+}(jQuery);
 /**
  * angular-strap
  * @version v2.0.1 - 2014-04-10
@@ -37816,88 +39910,604 @@ mod.directive('infiniteScroll', [
   });  // wtf javascript. srsly
 }());
 //
+// Generated by CoffeeScript 1.6.2
+/*
+jQuery Waypoints - v2.0.4
+Copyright (c) 2011-2014 Caleb Troughton
+Dual licensed under the MIT license and GPL license.
+https://github.com/imakewebthings/jquery-waypoints/blob/master/licenses.txt
+*/
+(function () {
+  var __indexOf = [].indexOf || function (item) {
+      for (var i = 0, l = this.length; i < l; i++) {
+        if (i in this && this[i] === item)
+          return i;
+      }
+      return -1;
+    }, __slice = [].slice;
+  (function (root, factory) {
+    if (typeof define === 'function' && define.amd) {
+      return define('waypoints', ['jquery'], function ($) {
+        return factory($, root);
+      });
+    } else {
+      return factory(root.jQuery, root);
+    }
+  }(this, function ($, window) {
+    var $w, Context, Waypoint, allWaypoints, contextCounter, contextKey, contexts, isTouch, jQMethods, methods, resizeEvent, scrollEvent, waypointCounter, waypointKey, wp, wps;
+    $w = $(window);
+    isTouch = __indexOf.call(window, 'ontouchstart') >= 0;
+    allWaypoints = {
+      horizontal: {},
+      vertical: {}
+    };
+    contextCounter = 1;
+    contexts = {};
+    contextKey = 'waypoints-context-id';
+    resizeEvent = 'resize.waypoints';
+    scrollEvent = 'scroll.waypoints';
+    waypointCounter = 1;
+    waypointKey = 'waypoints-waypoint-ids';
+    wp = 'waypoint';
+    wps = 'waypoints';
+    Context = function () {
+      function Context($element) {
+        var _this = this;
+        this.$element = $element;
+        this.element = $element[0];
+        this.didResize = false;
+        this.didScroll = false;
+        this.id = 'context' + contextCounter++;
+        this.oldScroll = {
+          x: $element.scrollLeft(),
+          y: $element.scrollTop()
+        };
+        this.waypoints = {
+          horizontal: {},
+          vertical: {}
+        };
+        this.element[contextKey] = this.id;
+        contexts[this.id] = this;
+        $element.bind(scrollEvent, function () {
+          var scrollHandler;
+          if (!(_this.didScroll || isTouch)) {
+            _this.didScroll = true;
+            scrollHandler = function () {
+              _this.doScroll();
+              return _this.didScroll = false;
+            };
+            return window.setTimeout(scrollHandler, $[wps].settings.scrollThrottle);
+          }
+        });
+        $element.bind(resizeEvent, function () {
+          var resizeHandler;
+          if (!_this.didResize) {
+            _this.didResize = true;
+            resizeHandler = function () {
+              $[wps]('refresh');
+              return _this.didResize = false;
+            };
+            return window.setTimeout(resizeHandler, $[wps].settings.resizeThrottle);
+          }
+        });
+      }
+      Context.prototype.doScroll = function () {
+        var axes, _this = this;
+        axes = {
+          horizontal: {
+            newScroll: this.$element.scrollLeft(),
+            oldScroll: this.oldScroll.x,
+            forward: 'right',
+            backward: 'left'
+          },
+          vertical: {
+            newScroll: this.$element.scrollTop(),
+            oldScroll: this.oldScroll.y,
+            forward: 'down',
+            backward: 'up'
+          }
+        };
+        if (isTouch && (!axes.vertical.oldScroll || !axes.vertical.newScroll)) {
+          $[wps]('refresh');
+        }
+        $.each(axes, function (aKey, axis) {
+          var direction, isForward, triggered;
+          triggered = [];
+          isForward = axis.newScroll > axis.oldScroll;
+          direction = isForward ? axis.forward : axis.backward;
+          $.each(_this.waypoints[aKey], function (wKey, waypoint) {
+            var _ref, _ref1;
+            if (axis.oldScroll < (_ref = waypoint.offset) && _ref <= axis.newScroll) {
+              return triggered.push(waypoint);
+            } else if (axis.newScroll < (_ref1 = waypoint.offset) && _ref1 <= axis.oldScroll) {
+              return triggered.push(waypoint);
+            }
+          });
+          triggered.sort(function (a, b) {
+            return a.offset - b.offset;
+          });
+          if (!isForward) {
+            triggered.reverse();
+          }
+          return $.each(triggered, function (i, waypoint) {
+            if (waypoint.options.continuous || i === triggered.length - 1) {
+              return waypoint.trigger([direction]);
+            }
+          });
+        });
+        return this.oldScroll = {
+          x: axes.horizontal.newScroll,
+          y: axes.vertical.newScroll
+        };
+      };
+      Context.prototype.refresh = function () {
+        var axes, cOffset, isWin, _this = this;
+        isWin = $.isWindow(this.element);
+        cOffset = this.$element.offset();
+        this.doScroll();
+        axes = {
+          horizontal: {
+            contextOffset: isWin ? 0 : cOffset.left,
+            contextScroll: isWin ? 0 : this.oldScroll.x,
+            contextDimension: this.$element.width(),
+            oldScroll: this.oldScroll.x,
+            forward: 'right',
+            backward: 'left',
+            offsetProp: 'left'
+          },
+          vertical: {
+            contextOffset: isWin ? 0 : cOffset.top,
+            contextScroll: isWin ? 0 : this.oldScroll.y,
+            contextDimension: isWin ? $[wps]('viewportHeight') : this.$element.height(),
+            oldScroll: this.oldScroll.y,
+            forward: 'down',
+            backward: 'up',
+            offsetProp: 'top'
+          }
+        };
+        return $.each(axes, function (aKey, axis) {
+          return $.each(_this.waypoints[aKey], function (i, waypoint) {
+            var adjustment, elementOffset, oldOffset, _ref, _ref1;
+            adjustment = waypoint.options.offset;
+            oldOffset = waypoint.offset;
+            elementOffset = $.isWindow(waypoint.element) ? 0 : waypoint.$element.offset()[axis.offsetProp];
+            if ($.isFunction(adjustment)) {
+              adjustment = adjustment.apply(waypoint.element);
+            } else if (typeof adjustment === 'string') {
+              adjustment = parseFloat(adjustment);
+              if (waypoint.options.offset.indexOf('%') > -1) {
+                adjustment = Math.ceil(axis.contextDimension * adjustment / 100);
+              }
+            }
+            waypoint.offset = elementOffset - axis.contextOffset + axis.contextScroll - adjustment;
+            if (waypoint.options.onlyOnScroll && oldOffset != null || !waypoint.enabled) {
+              return;
+            }
+            if (oldOffset !== null && (oldOffset < (_ref = axis.oldScroll) && _ref <= waypoint.offset)) {
+              return waypoint.trigger([axis.backward]);
+            } else if (oldOffset !== null && (oldOffset > (_ref1 = axis.oldScroll) && _ref1 >= waypoint.offset)) {
+              return waypoint.trigger([axis.forward]);
+            } else if (oldOffset === null && axis.oldScroll >= waypoint.offset) {
+              return waypoint.trigger([axis.forward]);
+            }
+          });
+        });
+      };
+      Context.prototype.checkEmpty = function () {
+        if ($.isEmptyObject(this.waypoints.horizontal) && $.isEmptyObject(this.waypoints.vertical)) {
+          this.$element.unbind([
+            resizeEvent,
+            scrollEvent
+          ].join(' '));
+          return delete contexts[this.id];
+        }
+      };
+      return Context;
+    }();
+    Waypoint = function () {
+      function Waypoint($element, context, options) {
+        var idList, _ref;
+        options = $.extend({}, $.fn[wp].defaults, options);
+        if (options.offset === 'bottom-in-view') {
+          options.offset = function () {
+            var contextHeight;
+            contextHeight = $[wps]('viewportHeight');
+            if (!$.isWindow(context.element)) {
+              contextHeight = context.$element.height();
+            }
+            return contextHeight - $(this).outerHeight();
+          };
+        }
+        this.$element = $element;
+        this.element = $element[0];
+        this.axis = options.horizontal ? 'horizontal' : 'vertical';
+        this.callback = options.handler;
+        this.context = context;
+        this.enabled = options.enabled;
+        this.id = 'waypoints' + waypointCounter++;
+        this.offset = null;
+        this.options = options;
+        context.waypoints[this.axis][this.id] = this;
+        allWaypoints[this.axis][this.id] = this;
+        idList = (_ref = this.element[waypointKey]) != null ? _ref : [];
+        idList.push(this.id);
+        this.element[waypointKey] = idList;
+      }
+      Waypoint.prototype.trigger = function (args) {
+        if (!this.enabled) {
+          return;
+        }
+        if (this.callback != null) {
+          this.callback.apply(this.element, args);
+        }
+        if (this.options.triggerOnce) {
+          return this.destroy();
+        }
+      };
+      Waypoint.prototype.disable = function () {
+        return this.enabled = false;
+      };
+      Waypoint.prototype.enable = function () {
+        this.context.refresh();
+        return this.enabled = true;
+      };
+      Waypoint.prototype.destroy = function () {
+        delete allWaypoints[this.axis][this.id];
+        delete this.context.waypoints[this.axis][this.id];
+        return this.context.checkEmpty();
+      };
+      Waypoint.getWaypointsByElement = function (element) {
+        var all, ids;
+        ids = element[waypointKey];
+        if (!ids) {
+          return [];
+        }
+        all = $.extend({}, allWaypoints.horizontal, allWaypoints.vertical);
+        return $.map(ids, function (id) {
+          return all[id];
+        });
+      };
+      return Waypoint;
+    }();
+    methods = {
+      init: function (f, options) {
+        var _ref;
+        if (options == null) {
+          options = {};
+        }
+        if ((_ref = options.handler) == null) {
+          options.handler = f;
+        }
+        this.each(function () {
+          var $this, context, contextElement, _ref1;
+          $this = $(this);
+          contextElement = (_ref1 = options.context) != null ? _ref1 : $.fn[wp].defaults.context;
+          if (!$.isWindow(contextElement)) {
+            contextElement = $this.closest(contextElement);
+          }
+          contextElement = $(contextElement);
+          context = contexts[contextElement[0][contextKey]];
+          if (!context) {
+            context = new Context(contextElement);
+          }
+          return new Waypoint($this, context, options);
+        });
+        $[wps]('refresh');
+        return this;
+      },
+      disable: function () {
+        return methods._invoke.call(this, 'disable');
+      },
+      enable: function () {
+        return methods._invoke.call(this, 'enable');
+      },
+      destroy: function () {
+        return methods._invoke.call(this, 'destroy');
+      },
+      prev: function (axis, selector) {
+        return methods._traverse.call(this, axis, selector, function (stack, index, waypoints) {
+          if (index > 0) {
+            return stack.push(waypoints[index - 1]);
+          }
+        });
+      },
+      next: function (axis, selector) {
+        return methods._traverse.call(this, axis, selector, function (stack, index, waypoints) {
+          if (index < waypoints.length - 1) {
+            return stack.push(waypoints[index + 1]);
+          }
+        });
+      },
+      _traverse: function (axis, selector, push) {
+        var stack, waypoints;
+        if (axis == null) {
+          axis = 'vertical';
+        }
+        if (selector == null) {
+          selector = window;
+        }
+        waypoints = jQMethods.aggregate(selector);
+        stack = [];
+        this.each(function () {
+          var index;
+          index = $.inArray(this, waypoints[axis]);
+          return push(stack, index, waypoints[axis]);
+        });
+        return this.pushStack(stack);
+      },
+      _invoke: function (method) {
+        this.each(function () {
+          var waypoints;
+          waypoints = Waypoint.getWaypointsByElement(this);
+          return $.each(waypoints, function (i, waypoint) {
+            waypoint[method]();
+            return true;
+          });
+        });
+        return this;
+      }
+    };
+    $.fn[wp] = function () {
+      var args, method;
+      method = arguments[0], args = 2 <= arguments.length ? __slice.call(arguments, 1) : [];
+      if (methods[method]) {
+        return methods[method].apply(this, args);
+      } else if ($.isFunction(method)) {
+        return methods.init.apply(this, arguments);
+      } else if ($.isPlainObject(method)) {
+        return methods.init.apply(this, [
+          null,
+          method
+        ]);
+      } else if (!method) {
+        return $.error('jQuery Waypoints needs a callback function or handler option.');
+      } else {
+        return $.error('The ' + method + ' method does not exist in jQuery Waypoints.');
+      }
+    };
+    $.fn[wp].defaults = {
+      context: window,
+      continuous: true,
+      enabled: true,
+      horizontal: false,
+      offset: 0,
+      triggerOnce: false
+    };
+    jQMethods = {
+      refresh: function () {
+        return $.each(contexts, function (i, context) {
+          return context.refresh();
+        });
+      },
+      viewportHeight: function () {
+        var _ref;
+        return (_ref = window.innerHeight) != null ? _ref : $w.height();
+      },
+      aggregate: function (contextSelector) {
+        var collection, waypoints, _ref;
+        collection = allWaypoints;
+        if (contextSelector) {
+          collection = (_ref = contexts[$(contextSelector)[0][contextKey]]) != null ? _ref.waypoints : void 0;
+        }
+        if (!collection) {
+          return [];
+        }
+        waypoints = {
+          horizontal: [],
+          vertical: []
+        };
+        $.each(waypoints, function (axis, arr) {
+          $.each(collection[axis], function (key, waypoint) {
+            return arr.push(waypoint);
+          });
+          arr.sort(function (a, b) {
+            return a.offset - b.offset;
+          });
+          waypoints[axis] = $.map(arr, function (waypoint) {
+            return waypoint.element;
+          });
+          return waypoints[axis] = $.unique(waypoints[axis]);
+        });
+        return waypoints;
+      },
+      above: function (contextSelector) {
+        if (contextSelector == null) {
+          contextSelector = window;
+        }
+        return jQMethods._filter(contextSelector, 'vertical', function (context, waypoint) {
+          return waypoint.offset <= context.oldScroll.y;
+        });
+      },
+      below: function (contextSelector) {
+        if (contextSelector == null) {
+          contextSelector = window;
+        }
+        return jQMethods._filter(contextSelector, 'vertical', function (context, waypoint) {
+          return waypoint.offset > context.oldScroll.y;
+        });
+      },
+      left: function (contextSelector) {
+        if (contextSelector == null) {
+          contextSelector = window;
+        }
+        return jQMethods._filter(contextSelector, 'horizontal', function (context, waypoint) {
+          return waypoint.offset <= context.oldScroll.x;
+        });
+      },
+      right: function (contextSelector) {
+        if (contextSelector == null) {
+          contextSelector = window;
+        }
+        return jQMethods._filter(contextSelector, 'horizontal', function (context, waypoint) {
+          return waypoint.offset > context.oldScroll.x;
+        });
+      },
+      enable: function () {
+        return jQMethods._invoke('enable');
+      },
+      disable: function () {
+        return jQMethods._invoke('disable');
+      },
+      destroy: function () {
+        return jQMethods._invoke('destroy');
+      },
+      extendFn: function (methodName, f) {
+        return methods[methodName] = f;
+      },
+      _invoke: function (method) {
+        var waypoints;
+        waypoints = $.extend({}, allWaypoints.vertical, allWaypoints.horizontal);
+        return $.each(waypoints, function (key, waypoint) {
+          waypoint[method]();
+          return true;
+        });
+      },
+      _filter: function (selector, axis, test) {
+        var context, waypoints;
+        context = contexts[$(selector)[0][contextKey]];
+        if (!context) {
+          return [];
+        }
+        waypoints = [];
+        $.each(context.waypoints[axis], function (i, waypoint) {
+          if (test(context, waypoint)) {
+            return waypoints.push(waypoint);
+          }
+        });
+        waypoints.sort(function (a, b) {
+          return a.offset - b.offset;
+        });
+        return $.map(waypoints, function (waypoint) {
+          return waypoint.element;
+        });
+      }
+    };
+    $[wps] = function () {
+      var args, method;
+      method = arguments[0], args = 2 <= arguments.length ? __slice.call(arguments, 1) : [];
+      if (jQMethods[method]) {
+        return jQMethods[method].apply(null, args);
+      } else {
+        return jQMethods.aggregate.call(null, method);
+      }
+    };
+    $[wps].settings = {
+      resizeThrottle: 100,
+      scrollThrottle: 30
+    };
+    return $w.load(function () {
+      return $[wps]('refresh');
+    });
+  }));
+}.call(this));
 /**
  * @license Angulartics v0.14.15
  * (c) 2013 Luis Farzati http://luisfarzati.github.io/angulartics
  * License: MIT
  */
-!function (a) {
+(function (angular, analytics) {
   'use strict';
-  var b = window.angulartics || (window.angulartics = {});
-  b.waitForVendorApi = function (a, c, d) {
-    Object.prototype.hasOwnProperty.call(window, a) ? d(window[a]) : setTimeout(function () {
-      b.waitForVendorApi(a, c, d);
-    }, c);
-  }, a.module('angulartics', []).provider('$analytics', function () {
-    var b = {
+  var angulartics = window.angulartics || (window.angulartics = {});
+  angulartics.waitForVendorApi = function (objectName, delay, registerFn) {
+    if (!Object.prototype.hasOwnProperty.call(window, objectName)) {
+      setTimeout(function () {
+        angulartics.waitForVendorApi(objectName, delay, registerFn);
+      }, delay);
+    } else {
+      registerFn(window[objectName]);
+    }
+  };
+  /**
+ * @ngdoc overview
+ * @name angulartics
+ */
+  angular.module('angulartics', []).provider('$analytics', function () {
+    var settings = {
         pageTracking: {
-          autoTrackFirstPage: !0,
-          autoTrackVirtualPages: !0,
-          trackRelativePath: !1,
+          autoTrackFirstPage: true,
+          autoTrackVirtualPages: true,
+          trackRelativePath: false,
           basePath: '',
           bufferFlushDelay: 1000
         },
         eventTracking: { bufferFlushDelay: 1000 }
-      }, c = {
+      };
+    var cache = {
         pageviews: [],
         events: []
-      }, d = function (a) {
-        c.pageviews.push(a);
-      }, e = function (a, b) {
-        c.events.push({
-          name: a,
-          properties: b
-        });
-      }, f = {
-        settings: b,
-        pageTrack: d,
-        eventTrack: e
-      }, g = function (d) {
-        f.pageTrack = d, a.forEach(c.pageviews, function (a, c) {
-          setTimeout(function () {
-            f.pageTrack(a);
-          }, c * b.pageTracking.bufferFlushDelay);
-        });
-      }, h = function (d) {
-        f.eventTrack = d, a.forEach(c.events, function (a, c) {
-          setTimeout(function () {
-            f.eventTrack(a.name, a.properties);
-          }, c * b.eventTracking.bufferFlushDelay);
-        });
       };
+    var bufferedPageTrack = function (path) {
+      cache.pageviews.push(path);
+    };
+    var bufferedEventTrack = function (event, properties) {
+      cache.events.push({
+        name: event,
+        properties: properties
+      });
+    };
+    var api = {
+        settings: settings,
+        pageTrack: bufferedPageTrack,
+        eventTrack: bufferedEventTrack
+      };
+    var registerPageTrack = function (fn) {
+      api.pageTrack = fn;
+      angular.forEach(cache.pageviews, function (path, index) {
+        setTimeout(function () {
+          api.pageTrack(path);
+        }, index * settings.pageTracking.bufferFlushDelay);
+      });
+    };
+    var registerEventTrack = function (fn) {
+      api.eventTrack = fn;
+      angular.forEach(cache.events, function (event, index) {
+        setTimeout(function () {
+          api.eventTrack(event.name, event.properties);
+        }, index * settings.eventTracking.bufferFlushDelay);
+      });
+    };
     return {
       $get: function () {
-        return f;
+        return api;
       },
-      settings: b,
-      virtualPageviews: function (a) {
-        this.settings.pageTracking.autoTrackVirtualPages = a;
+      settings: settings,
+      virtualPageviews: function (value) {
+        this.settings.pageTracking.autoTrackVirtualPages = value;
       },
-      firstPageview: function (a) {
-        this.settings.pageTracking.autoTrackFirstPage = a;
+      firstPageview: function (value) {
+        this.settings.pageTracking.autoTrackFirstPage = value;
       },
-      withBase: function (b) {
-        this.settings.pageTracking.basePath = b ? a.element('base').attr('href').slice(0, -1) : '';
+      withBase: function (value) {
+        this.settings.pageTracking.basePath = value ? angular.element('base').attr('href').slice(0, -1) : '';
       },
-      registerPageTrack: g,
-      registerEventTrack: h
+      registerPageTrack: registerPageTrack,
+      registerEventTrack: registerEventTrack
     };
   }).run([
     '$rootScope',
     '$location',
     '$analytics',
-    function (a, b, c) {
-      c.settings.pageTracking.autoTrackFirstPage && c.pageTrack(c.settings.trackRelativePath ? b.url() : b.absUrl()), c.settings.pageTracking.autoTrackVirtualPages && a.$on('$locationChangeSuccess', function (a, d) {
-        if (!d || !(d.$$route || d).redirectTo) {
-          var e = c.settings.pageTracking.basePath + b.url();
-          c.pageTrack(e);
+    function ($rootScope, $location, $analytics) {
+      if ($analytics.settings.pageTracking.autoTrackFirstPage) {
+        if ($analytics.settings.trackRelativePath) {
+          $analytics.pageTrack($location.url());
+        } else {
+          $analytics.pageTrack($location.absUrl());
         }
-      });
+      }
+      if ($analytics.settings.pageTracking.autoTrackVirtualPages) {
+        $rootScope.$on('$locationChangeSuccess', function (event, current) {
+          if (current && (current.$$route || current).redirectTo)
+            return;
+          var url = $analytics.settings.pageTracking.basePath + $location.url();
+          $analytics.pageTrack(url);
+        });
+      }
     }
   ]).directive('analyticsOn', [
     '$analytics',
-    function (b) {
-      function c(a) {
+    function ($analytics) {
+      function isCommand(element) {
         return [
           'a:',
           'button:',
@@ -37905,62 +40515,101 @@ mod.directive('infiniteScroll', [
           'button:submit',
           'input:button',
           'input:submit'
-        ].indexOf(a.tagName.toLowerCase() + ':' + (a.type || '')) >= 0;
+        ].indexOf(element.tagName.toLowerCase() + ':' + (element.type || '')) >= 0;
       }
-      function d(a) {
-        return c(a) ? 'click' : 'click';
+      function inferEventType(element) {
+        if (isCommand(element))
+          return 'click';
+        return 'click';
       }
-      function e(a) {
-        return c(a) ? a.innerText || a.value : a.id || a.name || a.tagName;
+      function inferEventName(element) {
+        if (isCommand(element))
+          return element.innerText || element.value;
+        return element.id || element.name || element.tagName;
       }
-      function f(a) {
-        return 'analytics' === a.substr(0, 9) && -1 === [
+      function isProperty(name) {
+        return name.substr(0, 9) === 'analytics' && [
           'on',
           'event'
-        ].indexOf(a.substr(10));
+        ].indexOf(name.substr(10)) === -1;
       }
       return {
         restrict: 'A',
-        scope: !1,
-        link: function (c, g, h) {
-          var i = h.analyticsOn || d(g[0]);
-          a.element(g[0]).bind(i, function () {
-            var c = h.analyticsEvent || e(g[0]), d = {};
-            a.forEach(h.$attr, function (a, b) {
-              f(b) && (d[b.slice(9).toLowerCase()] = h[b]);
-            }), b.eventTrack(c, d);
+        scope: false,
+        link: function ($scope, $element, $attrs) {
+          var eventType = $attrs.analyticsOn || inferEventType($element[0]);
+          angular.element($element[0]).bind(eventType, function () {
+            var eventName = $attrs.analyticsEvent || inferEventName($element[0]);
+            var properties = {};
+            angular.forEach($attrs.$attr, function (attr, name) {
+              if (isProperty(name)) {
+                properties[name.slice(9).toLowerCase()] = $attrs[name];
+              }
+            });
+            $analytics.eventTrack(eventName, properties);
           });
         }
       };
     }
   ]);
-}(angular);
+}(angular));
 /**
  * @license Angulartics v0.14.15
  * (c) 2013 Luis Farzati http://luisfarzati.github.io/angulartics
  * Universal Analytics update contributed by http://github.com/willmcclellan
  * License: MIT
  */
-!function (a) {
+(function (angular) {
   'use strict';
-  a.module('angulartics.google.analytics', ['angulartics']).config([
+  /**
+ * @ngdoc overview
+ * @name angulartics.google.analytics
+ * Enables analytics support for Google Analytics (http://google.com/analytics)
+ */
+  angular.module('angulartics.google.analytics', ['angulartics']).config([
     '$analyticsProvider',
-    function (a) {
-      a.settings.trackRelativePath = !0, a.registerPageTrack(function (a) {
-        window._gaq && _gaq.push([
-          '_trackPageview',
-          a
-        ]), window.ga && ga('send', 'pageview', a);
-      }), a.registerEventTrack(function (a, b) {
-        window._gaq ? _gaq.push([
-          '_trackEvent',
-          b.category,
-          a,
-          b.label,
-          b.value,
-          b.noninteraction
-        ]) : window.ga && (b.noninteraction ? ga('send', 'event', b.category, a, b.label, b.value, { nonInteraction: 1 }) : ga('send', 'event', b.category, a, b.label, b.value));
+    function ($analyticsProvider) {
+      // GA already supports buffered invocations so we don't need
+      // to wrap these inside angulartics.waitForVendorApi
+      $analyticsProvider.settings.trackRelativePath = true;
+      $analyticsProvider.registerPageTrack(function (path) {
+        if (window._gaq)
+          _gaq.push([
+            '_trackPageview',
+            path
+          ]);
+        if (window.ga)
+          ga('send', 'pageview', path);
+      });
+      /**
+   * Track Event in GA
+   * @name eventTrack
+   *
+   * @param {string} action Required 'action' (string) associated with the event
+   * @param {object} properties Comprised of the mandatory field 'category' (string) and optional  fields 'label' (string), 'value' (integer) and 'noninteraction' (boolean)
+   *
+   * @link https://developers.google.com/analytics/devguides/collection/gajs/eventTrackerGuide#SettingUpEventTracking
+   *
+   * @link https://developers.google.com/analytics/devguides/collection/analyticsjs/events
+   */
+      $analyticsProvider.registerEventTrack(function (action, properties) {
+        if (window._gaq) {
+          _gaq.push([
+            '_trackEvent',
+            properties.category,
+            action,
+            properties.label,
+            properties.value,
+            properties.noninteraction
+          ]);
+        } else if (window.ga) {
+          if (properties.noninteraction) {
+            ga('send', 'event', properties.category, action, properties.label, properties.value, { nonInteraction: 1 });
+          } else {
+            ga('send', 'event', properties.category, action, properties.label, properties.value);
+          }
+        }
       });
     }
   ]);
-}(angular);
+}(angular));

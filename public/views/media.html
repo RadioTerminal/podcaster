@@ -4,7 +4,7 @@
       <button ng-show="$root.auth" type="button" class="btn btn-primary" ng-click="addMedia()">Add Media +</button>
   </header>
   <div class="row" ng-show="media">
-      <mediaplayer item="item" class="col-6 col-sm-6 col-lg-4" ng-repeat='item in media'/>
+      <div mediaplayer item="item" class="col-6 col-sm-6 col-lg-4" ng-repeat='item in media'/>
   </div>
   <div class="jumbotron" ng-hide="media"><h3 >No media files present :(</h3></div>
 </div>

@@ -2,7 +2,7 @@
 
 angular.module('podcasterApp')
   .directive('waveformplayer', ->
-    restrict: "E"
+    restrict: "AE"
     scope: { item: '=' }
     templateUrl: "/views/player.html"
     link: (scope, element, attr) ->
@@ -22,11 +22,11 @@ angular.module('podcasterApp')
             canvas.getContext = oldGetContext
             ctx
 
-      createCanvas= (container, width, height) ->
+      createCanvas= (container) ->
          canvas = document.createElement("canvas")
          container[0].appendChild(canvas)
-         canvas.width  = width || 370
-         canvas.height = height || 80
+         canvas.width  = container.parent().clientWidth || 370
+         canvas.height = canvas.width/Math.PI
          canvas
 
       toHHMMSS = (times)->
@@ -97,7 +97,7 @@ angular.module('podcasterApp')
           redraw()
       , false
 
-      canvas = createCanvas(element, element.parent().clientWidth, element.clientHeight)
+      canvas = createCanvas(element)
       patchCanvasForIE(canvas)
       context = canvas.getContext("2d")
       width  = parseInt context.canvas.width, 10
@@ -156,6 +156,7 @@ angular.module('podcasterApp')
         scope.audio.src = "/api/media/head/#{item.id}"
         window["audio_#{item.id}"] = scope.audio
         redraw()
+
 
       scope.$on '$destroy', ()->
         
