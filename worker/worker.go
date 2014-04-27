@@ -41,5 +41,6 @@ func Worky(dbm gorm.DB) {
 	workers.Process("GenerateWaveform", GenerateWaveform, 1)
 
 	// Blocks until process is told to exit via unix signal
+
 	go workers.Run()
 }

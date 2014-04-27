@@ -1,0 +1,29 @@
+[deps]
+github.com/go-martini/martini = 
+github.com/jinzhu/gorm = 
+github.com/joho/godotenv = 
+github.com/jrallison/go-workers = 
+github.com/martini-contrib/binding = 
+github.com/martini-contrib/gzip = 
+github.com/martini-contrib/render = 
+github.com/pilu/fresh = 
+github.com/superlogical/analytics = 
+github.com/codegangsta/inject = 
+C = 
+github.com/codegangsta/martini = 
+code.google.com/p/go.net = 
+github.com/yosssi/gohtml = 
+github.com/bitly/go-simplejson = 
+github.com/garyburd/redigo = 
+github.com/howeyc/fsnotify = 
+github.com/pilu/config = 
+code.google.com/p/go.text = 
+github.com/dgrijalva/jwt-go = 
+github.com/eknkc/amber = 
+github.com/extemporalgenome/slug = 
+github.com/mattn/go-sqlite3 = 
+github.com/yosssi/gold = 
+
+[res]
+include = templates|public
+

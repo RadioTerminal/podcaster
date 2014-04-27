@@ -91,7 +91,7 @@ func init() {
 	})
 
 	gr.Get(`/feed/:slug`, routes.FeedForGroupGet)
-	gr.Get(`/stats`, workers.Stats)
+	gr.Get(`/stats`, utils.LoginRequired(PublicKey), workers.Stats)
 	// Inject database
 
 	// Add the router action
