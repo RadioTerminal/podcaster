@@ -20,7 +20,7 @@ func Connect() gorm.DB {
 		panic(fmt.Sprintf("Got error when connect database, the error is '%v'", err))
 	}
 	if martini.Env == martini.Dev {
-		db.LogMode(true)
+		//db.LogMode(true)
 	}
 
 	db.AutoMigrate(Media{})

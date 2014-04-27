@@ -1,0 +1,72 @@
+/* Space out content a bit */
+
+.navbar-default .navbar-nav>li a {
+  transition: color 0.3s;
+}
+
+html,
+body {
+  height: 100%;
+}
+
+body {
+  padding-top: 70px;
+}
+
+#wrap {
+  min-height: 100%;
+  height: auto !important;
+  height: 100%;
+  /* Negative indent footer by its height */
+  margin: 0 auto -50px;
+  /* Pad bottom by footer height + (optional) extra spacing */
+  padding: 0 0 50px;
+}
+
+#footer {
+  height: 50px;
+  padding-top: 15px;
+}
+
+#footer p {
+  margin: 0;
+  padding-bottom: 5px;
+}
+
+.jumbotron {
+  padding: 1em!important;
+}
+
+.jumbotron h2 {
+  margin-top: 0;
+}
+
+.jumbotron p {
+  font-size: initial!important;
+  font-weight: initial!important;
+}
+
+header {
+  margin-bottom: .5em;
+}
+
+.player-controls {
+  margin-bottom: 0px;
+}
+
+.player-controls .timer {
+  background-color: #333;
+  color: #aaa;
+  border-radius: 5px;
+  padding: 2px;
+  float: right;
+  margin-top: 4px;
+}
+
+.wrap {
+  margin-right: .4em;
+}
+
+.justify {
+  text-align: justify;
+}

@@ -3,6 +3,7 @@ package worker
 import (
 	"../models"
 	"../utils"
+	"fmt"
 	"github.com/jinzhu/gorm"
 	"github.com/jrallison/go-workers"
 	"os"
@@ -13,7 +14,8 @@ var db gorm.DB
 
 func GenerateWaveform(msg *workers.Msg) {
 	media := models.Media{}
-	id, _ := msg.Get("id").Int()
+	fmt.Println(msg)
+	id, _ := msg.Get("args").Int()
 	if err := db.First(&media, id).Error; err != nil {
 		return
 	}

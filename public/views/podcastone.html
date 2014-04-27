@@ -1,1 +1,27 @@
-<div class="row"><h1><a href="#/podcast/{{podcast.slug}}">{{podcast.name}}</a></h1><div class="jumbotron"><div class="row"><div class="col-md-4"><a href="#/podcast/{{podcast.slug}}"><img ng-src="{{podcast.picture}}" class="img-rounded img-responsive"></a></div><div class="col-md-8"><h2><small>{{podcast.description}}</small></h2><p>{{podcast.text}}</p><cite>by <a href="mailto:{{podcast.email}}">{{podcast.author}}</a></cite><p style="margin-top: 15px"><a class="btn btn-default" href="/feed/{{podcast.slug}}" target="_blank" role="button"><span class="icon-rss-squared"></span> Subscribe with RSS</a> <a class="btn btn-default" href="/feed/{{podcast.slug}}" target="_blank" role="button"><span class="icon-itunes"></span> Subscribe in iTunes</a></p><a ng-show="$root.auth" class="btn btn-primary" href="#/podcast/{{podcast.slug}}/edit" role="button"><span class="glyphicon glyphicon-edit"></span> Edit Podcast</a></div></div></div><div class="row"><mediaplayer item="item" class="col-6 col-sm-6 col-lg-4" ng-repeat="item in media"><div class="jumbotron" ng-hide="media"><h3>No media files present :(</h3></div></div></div>
+<div class="row">
+  <h1><a href="#/podcast/{{podcast.slug}}">{{podcast.name}}</a></h1>
+  <div class="jumbotron">
+      <div class="row">
+        <div class="col-md-4">
+            <a href="#/podcast/{{podcast.slug}}">
+              <img ng-src="{{podcast.picture}}" class="img-rounded img-responsive">
+            </a>
+        </div>
+        <div class="col-md-8">
+          <h2> <small>{{podcast.description}}</small></h2>
+          <p>{{podcast.text}}</p>
+          <cite>by <a href="mailto:{{podcast.email}}">{{podcast.author}}</a></cite>
+          <p style="margin-top: 15px;">
+            <a class="btn btn-default" href="/feed/{{podcast.slug}}" target="_blank" role="button"><span class="icon-rss-squared"></span> Subscribe with RSS</a>
+            <a class="btn btn-default" href="/feed/{{podcast.slug}}" target="_blank" role="button"><span class="icon-itunes"></span> Subscribe in iTunes</a>
+          </p>
+            <a ng-show="$root.auth" class="btn btn-primary" href="#/podcast/{{podcast.slug}}/edit" role="button"><span class="glyphicon glyphicon-edit"></span> Edit Podcast</a>
+          </p>
+        </div>
+      </div>
+  </div>
+  <div class="row">
+      <mediaplayer item="item" class="col-6 col-sm-6 col-lg-4" ng-repeat='item in media'/>
+      <div class="jumbotron" ng-hide="media"><h3 >No media files present :(</h3></div>
+  </div>
+</div>

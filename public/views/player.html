@@ -1,1 +1,9 @@
-<div class="form-group player-controls"><button class="btn btn-primary btn-xl playpause" analytics-on="click" analytics-event="Play" ng-click="playpause()"><span ng-show="audio.paused" class="play-text"><i class="glyphicon glyphicon-play"></i></span> <span ng-hide="audio.paused" class="pause-text"><i class="glyphicon glyphicon-pause"></i></span></button> <span class="btn-xs">{{now}} / {{duration}}</span> <span class="btn-xs"><span class="glyphicon glyphicon-music"></span> {{item.play_count}}</span></div>
+<div class="form-group player-controls">
+    <button class="btn btn-primary btn-xl playpause" analytics-on="click" analytics-event="Play" ng-click="playpause()">
+        <span ng-show="audio.paused" class="play-text"><i class="glyphicon glyphicon-play"></i></span>
+        <span ng-hide="audio.paused" class="pause-text"><i class="glyphicon glyphicon-pause"></i></span>
+    </button>
+    <span class="btn-xs">{{now}} / {{duration}}</span>
+
+    <span class="btn-xs"><span class="glyphicon glyphicon-music"></span> {{item.play_count}}</span>
+</div>

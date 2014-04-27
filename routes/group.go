@@ -30,7 +30,7 @@ func MediaForGroupGet(db gorm.DB, r render.Render, params martini.Params) {
 		r.JSON(http.StatusNotFound, map[string]interface{}{"error": "Group not found"})
 		return
 	}
-	db.Model(&podcast).Related(&media)
+	db.Model(&podcast).Order("created_at desc").Related(&media)
 	r.JSON(http.StatusOK, media)
 }
 

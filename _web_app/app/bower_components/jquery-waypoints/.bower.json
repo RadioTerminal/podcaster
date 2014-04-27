@@ -1,0 +1,29 @@
+{
+  "name": "jquery-waypoints",
+  "version": "2.0.4",
+  "main": "waypoints.js",
+  "description": "A jQuery plugin that makes it easy to execute a function whenever you scroll to an element.",
+  "ignore": [
+    "**/.*",
+    "**/*.coffee",
+    "**/*.html",
+    "bower_components",
+    "examples",
+    "node_modules",
+    "Makefile",
+    "test"
+  ],
+  "dependencies": {
+    "jquery": ">=1.8"
+  },
+  "homepage": "https://github.com/imakewebthings/jquery-waypoints",
+  "_release": "2.0.4",
+  "_resolution": {
+    "type": "version",
+    "tag": "v2.0.4",
+    "commit": "ddf1b09d5d51b39c7e349e081f45cd5290f8a08d"
+  },
+  "_source": "git://github.com/imakewebthings/jquery-waypoints.git",
+  "_target": "~v2.0.3",
+  "_originalSource": "jquery-waypoints"
+}

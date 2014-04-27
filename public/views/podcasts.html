@@ -1,1 +1,26 @@
-<div class="row"><header><h1>Podcasts</h1><button ng-show="$root.auth" type="button" class="btn btn-primary" ng-click="addPodcast()">Add Podcast +</button></header><div class="jumbotron" ng-show="groups" ng-repeat="item in groups"><div class="row"><div class="col-md-3"><a href="#/podcast/{{item.slug}}"><img ng-src="{{item.picture}}" class="img-rounded img-responsive"></a></div><div class="col-md-9"><h2><a href="#/podcast/{{item.slug}}">{{item.name}}</a> <small>{{item.description}}</small></h2><cite>by <a href="mailto:{{item.email}}">{{item.author}}</a></cite><p>{{item.text}}</p><p><a class="btn btn-default btn-sm" href="/feed/{{item.slug}}" target="_blank" role="button"><span class="icon-rss-squared"></span> Subscribe with RSS</a> <a class="btn btn-default btn-sm" href="/feed/{{item.slug}}" target="_blank" role="button"><span class="icon-itunes"></span> Subscribe in iTunes</a></p></div></div></div><div class="jumbotron" ng-hide="groups"><h3>No podcasts present :(</h3></div></div>
+<div class="row">
+  <header>
+      <h1>Podcasts</h1>
+      <button ng-show="$root.auth" type="button" class="btn btn-primary" ng-click="addPodcast()">Add Podcast +</button>
+
+  </header>
+  <div class="jumbotron" ng-show="groups" ng-repeat='item in groups'>
+    <div class="row">
+      <div class="col-md-3">
+        <a href="#/podcast/{{item.slug}}">
+          <img ng-src="{{item.picture}}" class="img-rounded img-responsive">
+        </a>
+      </div>
+      <div class="col-md-9">
+        <h2><a href="#/podcast/{{item.slug}}">{{item.name}}</a> <small>{{item.description}}</small></h2>
+        <cite>by <a href="mailto:{{item.email}}">{{item.author}}</a></cite>
+        <p>{{item.text}}</p>
+        <p>
+          <a class="btn btn-default btn-sm" href="/feed/{{item.slug}}" target="_blank" role="button"><span class="icon-rss-squared"></span> Subscribe with RSS</a>
+          <a class="btn btn-default btn-sm" href="/feed/{{item.slug}}" target="_blank" role="button"><span class="icon-itunes"></span> Subscribe in iTunes</a>
+        </p>
+      </div>
+    </div>
+  </div>
+  <div class="jumbotron" ng-hide="groups"><h3 >No podcasts present :(</h3></div>
+</div>
